@@ -1,0 +1,21 @@
+language: cpp
+
+sudo: required
+
+compiler:
+- g++
+
+env:
+- PURPOSE=compile
+- PURPOSE=unittest
+
+before_install:
+
+install:
+
+before_script:
+
+script:
+- sh build_in_travis_ci.sh
+
+after_failure:
