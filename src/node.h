@@ -2,6 +2,7 @@
 #include <memory>
 #include <mutex>
 #include <cassert>
+#include <atomic>
 #include "gflags/gflags.h"
 
 
@@ -27,25 +28,34 @@ public:
     Node();
 
     void put(const Key& k, ValuePtr v);
-    ValuePtr get(const Key& k);
+    ValuePtr get(const Key& k, int& node_version);
     void erase(const Key& k);
     NodePtr clone();
+    // TODO: change int to atomic<int>, there is no need to lock here
+    bool check_version(int node_version) {
+        std::lock_guard<std::mutex> lck(_mutex);
+        return node_version == _version;
+    }
 
 private:
     Node(KVMapPtr kvmap);
     std::mutex _mutex; // when a shared ptr is accessed by mutiple threads, it needs external sync
+    // TODO: change int to atomic<int> ?
+    int _version; // the node version will increment 1 for every write on this node
     KVMapPtr _kvmap;
 };
 
 template <typename Key, typename Value, typename Comparator>
 Node<Key, Value, Comparator>::Node()
-: _kvmap(new KVMap) {
+: _kvmap(new KVMap),
+  _version(1) {
 
 }
 
 template <typename Key, typename Value, typename Comparator>
 Node<Key, Value, Comparator>::Node(KVMapPtr kvmap)
-: _kvmap(kvmap) {
+: _kvmap(kvmap),
+  _version(1) {
 
 }
 
@@ -57,15 +67,17 @@ void Node<Key, Value, Comparator>::put(const Key& k, ValuePtr v) {
     }
     assert(_kvmap.unique());
     (*_kvmap)[k] = v;
+    _version++;
 }
 
 template <typename Key, typename Value, typename Comparator>
-typename Node<Key, Value, Comparator>::ValuePtr Node<Key, Value, Comparator>::get(const Key& k) {
+typename Node<Key, Value, Comparator>::ValuePtr Node<Key, Value, Comparator>::get(const Key& k, int& node_version) {
     KVMapPtr kvmap;
     {
         std::lock_guard<std::mutex> lck(_mutex);
         kvmap = _kvmap;
         assert(!kvmap.unique());
+        node_version = _version;
     }
     auto iter = kvmap->find(k);
     if (iter == kvmap->end()) {
@@ -82,6 +94,7 @@ void Node<Key, Value, Comparator>::erase(const Key& k) {
     }
     assert(_kvmap.unique());
     _kvmap->erase(k);
+    _version++;
 }
 
 template <typename Key, typename Value, typename Comparator>
