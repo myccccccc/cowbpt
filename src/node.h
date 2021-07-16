@@ -2,12 +2,15 @@
 #include <memory>
 #include <mutex>
 #include <cassert>
+#include "gflags/gflags.h"
 
 
 #ifndef NODE_H
 #define NODE_H
 
 namespace cowbpt {
+
+DECLARE_int32(COWBPT_NODE_B_SZIE);
 
 // A COW node impl, it can be a leaf node or non-leaf node
 // it allows current reads and writes without external sync

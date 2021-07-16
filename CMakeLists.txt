@@ -8,11 +8,15 @@ file(GLOB COWBPT_SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp)
 add_library(cowbpt_library STATIC 
         ${COWBPT_SRC_FILES}
 )
-
 target_include_directories(cowbpt_library
     PUBLIC 
         ${PROJECT_SOURCE_DIR}/src
 )
+
+add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/gflags)
+target_link_libraries(cowbpt_library
+    PUBLIC 
+         gflags::gflags)
 
 if(COWBPT_BUILD_TESTS)
         enable_testing()
