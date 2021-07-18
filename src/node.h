@@ -31,17 +31,14 @@ public:
     ValuePtr get(const Key& k, int& node_version);
     void erase(const Key& k);
     NodePtr clone();
-    // TODO: change int to atomic<int>, there is no need to lock here
     bool check_version(int node_version) {
-        std::lock_guard<std::mutex> lck(_mutex);
-        return node_version == _version;
+        return node_version == _version.load(std::memory_order_acquire);
     }
 
 private:
     Node(KVMapPtr kvmap);
     std::mutex _mutex; // when a shared ptr is accessed by mutiple threads, it needs external sync
-    // TODO: change int to atomic<int> ?
-    int _version; // the node version will increment 1 for every write on this node
+    std::atomic<int> _version; // the node version will increment 1 for every write on this node
     KVMapPtr _kvmap;
 };
 
@@ -67,7 +64,7 @@ void Node<Key, Value, Comparator>::put(const Key& k, ValuePtr v) {
     }
     assert(_kvmap.unique());
     (*_kvmap)[k] = v;
-    _version++;
+    _version.fetch_add(1, std::memory_order_release);
 }
 
 template <typename Key, typename Value, typename Comparator>
@@ -77,7 +74,7 @@ typename Node<Key, Value, Comparator>::ValuePtr Node<Key, Value, Comparator>::ge
         std::lock_guard<std::mutex> lck(_mutex);
         kvmap = _kvmap;
         assert(!kvmap.unique());
-        node_version = _version;
+        node_version = _version.load(std::memory_order_acquire);
     }
     auto iter = kvmap->find(k);
     if (iter == kvmap->end()) {
@@ -94,7 +91,7 @@ void Node<Key, Value, Comparator>::erase(const Key& k) {
     }
     assert(_kvmap.unique());
     _kvmap->erase(k);
-    _version++;
+    _version.fetch_add(1, std::memory_order_release);
 }
 
 template <typename Key, typename Value, typename Comparator>
