@@ -2,6 +2,7 @@
 #include <string>
 #include <memory>
 #include "slice.h"
+#include "comparator.h"
 
 using namespace cowbpt;
 

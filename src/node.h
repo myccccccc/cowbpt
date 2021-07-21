@@ -27,9 +27,10 @@ protected:
     typedef Slice LeafNodeValue;
 
 public:
-    Node()
+    Node(Comparator cmp)
     : _version(1),
-      _mutex() {
+      _mutex(),
+      _cmp(cmp) {
 
     }
     virtual ~Node() = default;
@@ -95,6 +96,7 @@ public:
 protected:
     std::mutex _mutex; // when a shared ptr is accessed by mutiple threads, it needs external sync
     std::atomic<int> _version; // the node version will increment 1 for every write on this node
+    const Comparator _cmp;
 };
 
 template <typename Comparator>
@@ -107,8 +109,8 @@ private:
     typedef LeafNodeMap<Key, LeafNodeValue, Comparator> KVMap;
     typedef std::shared_ptr<KVMap> KVMapPtr;
 public:
-    LeafNode()
-    : LeafNode(std::make_shared<KVMap>()) {
+    LeafNode(Comparator cmp)
+    : LeafNode(std::make_shared<KVMap>(cmp), cmp) {
     }
 
     virtual bool is_leafnode() override {
@@ -165,12 +167,12 @@ public:
     NodePtr split(Key& k) override {
         // TODO: assert _mutex is locked
         KVMapPtr rhs_kv_map(_kvmap->split(k));
-        NodePtr p(new LeafNode<Comparator>(rhs_kv_map));
+        NodePtr p(new LeafNode<Comparator>(rhs_kv_map, Node<Comparator>::_cmp));
         return p;
     }
 private:
-    LeafNode(KVMapPtr p)
-    : Node<Comparator>(),
+    LeafNode(KVMapPtr p, Comparator cmp)
+    : Node<Comparator>(cmp),
       _kvmap(p) {
 
     }
@@ -190,8 +192,8 @@ private:
     typedef std::shared_ptr<KVMap> KVMapPtr;
 public:
     InternalNode() = delete;
-    InternalNode(NodePtr v1, const Key& k2, NodePtr v2) 
-    : InternalNode(std::make_shared<KVMap>(v1, k2, v2)){
+    InternalNode(Comparator cmp, NodePtr v1, const Key& k2, NodePtr v2) 
+    : InternalNode(std::make_shared<KVMap>(cmp, v1, k2, v2), cmp){
 
     }
 
@@ -249,12 +251,12 @@ public:
     NodePtr split(Key& k) override {
         // TODO: assert _mutex is locked
         KVMapPtr rhs_kv_map(_kvmap->split(k));
-        NodePtr p(new InternalNode<Comparator>(rhs_kv_map));
+        NodePtr p(new InternalNode<Comparator>(rhs_kv_map, Node<Comparator>::_cmp));
         return p;
     }
 private:
-    InternalNode(KVMapPtr p)
-    : Node<Comparator>(),
+    InternalNode(KVMapPtr p, Comparator cmp)
+    : Node<Comparator>(cmp),
       _kvmap(p) {
 
     }

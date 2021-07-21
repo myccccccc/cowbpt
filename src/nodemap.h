@@ -31,15 +31,19 @@ namespace cowbpt {
     //     // TODO: delete
     // };
 
-    template <typename Key, typename Value, typename Comparator = std::less<Key>>
+    template <typename Key, typename Value, typename Comparator>
     class LeafNodeMap {
     private:
         typedef std::vector<std::pair<Key, Value>> ArrayMap;
-        LeafNodeMap(typename ArrayMap::iterator begin, typename ArrayMap::iterator end)
-        : _v(begin, end) {
+        LeafNodeMap(Comparator cmp, typename ArrayMap::iterator begin, typename ArrayMap::iterator end)
+        : _v(begin, end),
+          _cmp(cmp) {
         }
     public:
-        LeafNodeMap() = default;
+        LeafNodeMap(Comparator cmp) 
+        : _v(),
+          _cmp(cmp) {
+        }
         size_t size() {
             return _v.size();
         }
@@ -64,12 +68,12 @@ namespace cowbpt {
         LeafNodeMap<Key, Value, Comparator>* split(Key& k) {
             auto offset = _v.size() / 2;
             k = _v[offset].first;
-            auto right_split_node = new LeafNodeMap(_v.begin() + offset, _v.end());
+            auto right_split_node = new LeafNodeMap(_cmp, _v.begin() + offset, _v.end());
             _v.erase(_v.begin() + offset, _v.end());
             return right_split_node;
         }
         LeafNodeMap<Key, Value, Comparator>* copy() {
-            return new LeafNodeMap(_v.begin(), _v.end());
+            return new LeafNodeMap(_cmp, _v.begin(), _v.end());
         }
     private:
         // find the offset of _v where _v[offset] is greater or equal to k
@@ -87,21 +91,23 @@ namespace cowbpt {
         }
 
         ArrayMap _v; // sorted by Key
-        Comparator _cmp;
+        const Comparator _cmp;
     };
 
-    template <typename Key, typename Value, typename Comparator = std::less<Key>>
+    template <typename Key, typename Value, typename Comparator>
     class InternalNodeMap {
     private:
         typedef std::vector<std::pair<Key, Value>> ArrayMap;
-        InternalNodeMap(typename ArrayMap::iterator begin, typename ArrayMap::iterator end)
-        : _v(begin, end) {
+        InternalNodeMap(Comparator cmp, typename ArrayMap::iterator begin, typename ArrayMap::iterator end)
+        : _v(begin, end),
+          _cmp(cmp) {
         }
     public:
         InternalNodeMap() = delete;
-        InternalNodeMap(Value v1, 
+        InternalNodeMap(Comparator cmp, Value v1, 
                         const Key& k2, Value v2)
-        : _v() {
+        : _v(),
+          _cmp(cmp) {
             _v.push_back(std::make_pair(Key(), v1));
             _v.push_back(std::make_pair(k2, v2));
         }
@@ -124,12 +130,12 @@ namespace cowbpt {
         InternalNodeMap<Key, Value, Comparator>* split(Key& k) {
             auto offset = _v.size() / 2;
             k = _v[offset].first;
-            auto right_split_node = new InternalNodeMap(_v.begin() + offset, _v.end());
+            auto right_split_node = new InternalNodeMap(_cmp, _v.begin() + offset, _v.end());
             _v.erase(_v.begin() + offset, _v.end());
             return right_split_node;
         }
         InternalNodeMap<Key, Value, Comparator>* copy() {
-            return new InternalNodeMap(_v.begin(), _v.end());
+            return new InternalNodeMap(_cmp, _v.begin(), _v.end());
         }
     private:
         // find the offset of _v where _v[offset]'s child node may contains Key down below
@@ -151,7 +157,7 @@ namespace cowbpt {
         }
 
         ArrayMap _v; // sorted by Key
-        Comparator _cmp;
+        const Comparator _cmp;
     };
 }
 

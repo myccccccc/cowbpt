@@ -8,13 +8,15 @@
 #include "nodemap.h"
 #include "slice.h"
 #include "node.h"
+#include "comparator.h"
 
 using namespace cowbpt;
 
 bool equal(Slice a, Slice b);
+extern SliceComparator cmp;
 
 TEST(NodeMapTest, LeafNodeMapCRUD) {
-  LeafNodeMap<Slice, Slice, SliceComparator>* lnm = new LeafNodeMap<Slice, Slice, SliceComparator>;
+  LeafNodeMap<Slice, Slice, SliceComparator>* lnm = new LeafNodeMap<Slice, Slice, SliceComparator>(cmp);
   lnm->put("2", Slice("two"));
   lnm->put("4", Slice("four"));
   lnm->put("6", Slice("six"));
@@ -63,7 +65,7 @@ TEST(NodeMapTest, LeafNodeMapCRUD) {
 }
 
 TEST(NodeMapTest, InternalNodeMapCRUD) {
-  std::shared_ptr<Node<SliceComparator>> n(new LeafNode<SliceComparator>);
+  std::shared_ptr<Node<SliceComparator>> n(new LeafNode<SliceComparator>(cmp));
   n->put("1", "one");
   n->put("2", "two");
   n->put("3", "three");
@@ -73,7 +75,7 @@ TEST(NodeMapTest, InternalNodeMapCRUD) {
   Slice split_key;
   auto n2 = n->split(split_key);
 
-  InternalNodeMap<Slice, std::shared_ptr<Node<SliceComparator>>, SliceComparator>* nm3 = new InternalNodeMap<Slice, std::shared_ptr<Node<SliceComparator>>, SliceComparator>(n, split_key, n2);
+  InternalNodeMap<Slice, std::shared_ptr<Node<SliceComparator>>, SliceComparator>* nm3 = new InternalNodeMap<Slice, std::shared_ptr<Node<SliceComparator>>, SliceComparator>(cmp, n, split_key, n2);
 
   EXPECT_EQ(nm3->get("0").get(), n.get());
   EXPECT_EQ(nm3->get("1").get(), n.get());

@@ -8,15 +8,17 @@
 
 #include "node.h"
 #include "slice.h"
+#include "comparator.h"
 
 
 
 using namespace cowbpt;
 
 bool equal(Slice a, Slice b);
+extern SliceComparator cmp;
 
 TEST(NodeTest, LeafNodeCRUD) {
-  std::shared_ptr<Node<SliceComparator>> n(new LeafNode<SliceComparator>);
+  std::shared_ptr<Node<SliceComparator>> n(new LeafNode<SliceComparator>(cmp));
   EXPECT_EQ(n->is_leafnode(), true);
   int node_version;
   EXPECT_TRUE(equal(n->get_leafnode_value("1", node_version), EMPTYSLICE));
@@ -57,7 +59,7 @@ TEST(NodeTest, LeafNodeCRUD) {
 }
 
 TEST(NodeTest, InternalNodeCRUD) {
-  std::shared_ptr<Node<SliceComparator>> n(new LeafNode<SliceComparator>);
+  std::shared_ptr<Node<SliceComparator>> n(new LeafNode<SliceComparator>(cmp));
   n->put("1", "one");
   n->put("2", "two");
   n->put("3", "three");
@@ -66,7 +68,7 @@ TEST(NodeTest, InternalNodeCRUD) {
   EXPECT_EQ(n->need_split(), true);
   Slice split_key;
   auto n2 = n->split(split_key);
-  std::shared_ptr<Node<SliceComparator>> n3(new InternalNode<SliceComparator>(n, split_key, n2));
+  std::shared_ptr<Node<SliceComparator>> n3(new InternalNode<SliceComparator>(cmp, n, split_key, n2));
   EXPECT_EQ(n3->is_internalnode(), true);
   int node_version;
   EXPECT_EQ(((n3->get_internalnode_value("0", node_version)).get()), n.get());
@@ -141,7 +143,7 @@ TEST(NodeTest, InternalNodeCRUD) {
   auto n7 = n3->split(split_key);
 
   
-  std::shared_ptr<Node<SliceComparator>> n8(new InternalNode<SliceComparator>(n3, split_key, n7));
+  std::shared_ptr<Node<SliceComparator>> n8(new InternalNode<SliceComparator>(cmp, n3, split_key, n7));
 
   EXPECT_EQ(((n8->get_internalnode_value("0.1", node_version)).get()), n3.get());
   EXPECT_EQ(((n8->get_internalnode_value("0.9", node_version)).get()), n3.get());
