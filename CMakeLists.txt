@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.5)
 
 project(cowbpt)
 
+set(CMAKE_CXX_FLAGS "-g -Wall")
+
 option(COWBPT_BUILD_TESTS "Build cowbpt's unit tests" ON)
 
 file(GLOB COWBPT_SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp)

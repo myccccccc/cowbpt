@@ -6,100 +6,106 @@
 #define protected public
 
 #include "nodemap.h"
+#include "slice.h"
+#include "node.h"
 
 using namespace cowbpt;
 
+bool equal(Slice a, Slice b);
+
 TEST(NodeMapTest, LeafNodeMapCRUD) {
-  LeafNodeMap<int, std::shared_ptr<std::string>>* lnm = new LeafNodeMap<int, std::shared_ptr<std::string>>;
-  NodeMap<int, std::shared_ptr<std::string>>* nm = lnm;
-  nm->put(2, std::make_shared<std::string>("two"));
-  nm->put(4, std::make_shared<std::string>("four"));
-  nm->put(6, std::make_shared<std::string>("six"));
-  nm->put(1, std::make_shared<std::string>("one"));
-  nm->put(3, std::make_shared<std::string>("three"));
-  nm->put(5, std::make_shared<std::string>("five"));
-  EXPECT_EQ(nm->size(), 6);
-  EXPECT_EQ(*(nm->get(1)), "one");
-  EXPECT_EQ(*(nm->get(2)), "two");
-  EXPECT_EQ(*(nm->get(3)), "three");
-  EXPECT_EQ(*(nm->get(4)), "four");
-  EXPECT_EQ(*(nm->get(5)), "five");
-  EXPECT_EQ(*(nm->get(6)), "six");
-  for (auto i = 0; i < lnm->_v.size(); i++) {
-    EXPECT_EQ(lnm->_v[i].first, i+1);
-  }
+  LeafNodeMap<Slice, Slice, SliceComparator>* lnm = new LeafNodeMap<Slice, Slice, SliceComparator>;
+  lnm->put("2", Slice("two"));
+  lnm->put("4", Slice("four"));
+  lnm->put("6", Slice("six"));
+  lnm->put("1", Slice("one"));
+  lnm->put("3", Slice("three"));
+  lnm->put("5", Slice("five"));
+  EXPECT_TRUE(equal(lnm->get("1"), "one"));
+  EXPECT_TRUE(equal(lnm->get("2"), "two"));
+  EXPECT_TRUE(equal(lnm->get("3"), "three"));
+  EXPECT_TRUE(equal(lnm->get("4"), "four"));
+  EXPECT_TRUE(equal(lnm->get("5"), "five"));
+  EXPECT_TRUE(equal(lnm->get("6"), "six"));
+  EXPECT_TRUE(equal(lnm->get("7"), EMPTYSLICE));
+  EXPECT_EQ(lnm->size(), 6);
+  EXPECT_TRUE(equal(lnm->_v[0].first, "1"));
+  EXPECT_TRUE(equal(lnm->_v[1].first, "2"));
+  EXPECT_TRUE(equal(lnm->_v[2].first, "3"));
+  EXPECT_TRUE(equal(lnm->_v[3].first, "4"));
+  EXPECT_TRUE(equal(lnm->_v[4].first, "5"));
+  EXPECT_TRUE(equal(lnm->_v[5].first, "6"));
 
-  int split_key;
-  LeafNodeMap<int, std::shared_ptr<std::string>>* lnm2 = static_cast<LeafNodeMap<int, std::shared_ptr<std::string>>*> (nm->split(split_key));
-  EXPECT_EQ(split_key, 4);
-  NodeMap<int, std::shared_ptr<std::string>>* nm2 = lnm2;
-  EXPECT_EQ(nm->size(), 3);
-  EXPECT_EQ(nm2->size(), 3);
-  EXPECT_EQ(*(nm->get(1)), "one");
-  EXPECT_EQ(*(nm->get(2)), "two");
-  EXPECT_EQ(*(nm->get(3)), "three");
-  EXPECT_EQ((nm->get(4)), nullptr);
-  EXPECT_EQ((nm->get(5)), nullptr);
-  EXPECT_EQ((nm->get(6)), nullptr);
-  EXPECT_EQ((nm2->get(1)), nullptr);
-  EXPECT_EQ((nm2->get(2)), nullptr);
-  EXPECT_EQ((nm2->get(3)), nullptr);
-  EXPECT_EQ(*(nm2->get(4)), "four");
-  EXPECT_EQ(*(nm2->get(5)), "five");
-  EXPECT_EQ(*(nm2->get(6)), "six");
+  Slice split_key;
+  LeafNodeMap<Slice, Slice, SliceComparator>* lnm2 = lnm->split(split_key);
+  EXPECT_TRUE(equal(split_key, "4"));
+  EXPECT_EQ(lnm->size(), 3);
+  EXPECT_EQ(lnm2->size(), 3);
+  EXPECT_TRUE(equal(lnm->get("1"), "one"));
+  EXPECT_TRUE(equal(lnm->get("2"), "two"));
+  EXPECT_TRUE(equal(lnm->get("3"), "three"));
+  EXPECT_TRUE(equal(lnm->get("4"), EMPTYSLICE));
+  EXPECT_TRUE(equal(lnm->get("5"), EMPTYSLICE));
+  EXPECT_TRUE(equal(lnm->get("6"), EMPTYSLICE));
+  EXPECT_TRUE(equal(lnm2->get("1"), EMPTYSLICE));
+  EXPECT_TRUE(equal(lnm2->get("2"), EMPTYSLICE));
+  EXPECT_TRUE(equal(lnm2->get("3"), EMPTYSLICE));
+  EXPECT_TRUE(equal(lnm2->get("4"), "four"));
+  EXPECT_TRUE(equal(lnm2->get("5"), "five"));
+  EXPECT_TRUE(equal(lnm2->get("6"), "six"));
 
-  nm->put(1, std::make_shared<std::string>("ones"));
-  nm->put(2, std::make_shared<std::string>("twos"));
-  nm->put(3, std::make_shared<std::string>("threes"));
-  EXPECT_EQ(*(nm->get(1)), "ones");
-  EXPECT_EQ(*(nm->get(2)), "twos");
-  EXPECT_EQ(*(nm->get(3)), "threes");
+  lnm->put("1", Slice("ones"));
+  lnm->put("2", Slice("twos"));
+  lnm->put("3", Slice("threes"));
+  EXPECT_TRUE(equal(lnm->get("1"), "ones"));
+  EXPECT_TRUE(equal(lnm->get("2"), "twos"));
+  EXPECT_TRUE(equal(lnm->get("3"), "threes"));
 }
 
 TEST(NodeMapTest, InternalNodeMapCRUD) {
-  std::shared_ptr<LeafNodeMap<int, std::shared_ptr<std::string>>> lnm = std::make_shared<LeafNodeMap<int, std::shared_ptr<std::string>>>();
-  std::shared_ptr<NodeMap<int, std::shared_ptr<std::string>>> nm = lnm;
-  nm->put(2, std::make_shared<std::string>("two"));
-  nm->put(4, std::make_shared<std::string>("four"));
-  nm->put(6, std::make_shared<std::string>("six"));
-  nm->put(1, std::make_shared<std::string>("one"));
-  nm->put(3, std::make_shared<std::string>("three"));
-  nm->put(5, std::make_shared<std::string>("five"));
-  int split_key;
-  std::shared_ptr<LeafNodeMap<int, std::shared_ptr<std::string>>> lnm2(static_cast<LeafNodeMap<int, std::shared_ptr<std::string>>*> (nm->split(split_key)));
-  std::shared_ptr<NodeMap<int, std::shared_ptr<std::string>>> nm2 = lnm2;
-  
-  InternalNodeMap<int, std::shared_ptr<NodeMap<int, std::shared_ptr<std::string>>>>* inm = new InternalNodeMap<int, std::shared_ptr<NodeMap<int, std::shared_ptr<std::string>>>>(nm, split_key, nm2);
-  NodeMap<int, std::shared_ptr<NodeMap<int, std::shared_ptr<std::string>>>>* nm3 = inm;
+  std::shared_ptr<Node<SliceComparator>> n(new LeafNode<SliceComparator>);
+  n->put("1", "one");
+  n->put("2", "two");
+  n->put("3", "three");
+  n->put("4", "four");
+  n->put("5", "five");
+  EXPECT_EQ(n->need_split(), true);
+  Slice split_key;
+  auto n2 = n->split(split_key);
 
-  EXPECT_EQ(nm3->get(0).get(), nm.get());
-  EXPECT_EQ(nm3->get(1).get(), nm.get());
-  EXPECT_EQ(nm3->get(2).get(), nm.get());
-  EXPECT_EQ(nm3->get(3).get(), nm.get());
-  EXPECT_EQ(nm3->get(4).get(), nm2.get());
-  EXPECT_EQ(nm3->get(5).get(), nm2.get());
-  EXPECT_EQ(nm3->get(6).get(), nm2.get());
-  EXPECT_EQ(nm3->get(7).get(), nm2.get());
+  InternalNodeMap<Slice, std::shared_ptr<Node<SliceComparator>>, SliceComparator>* nm3 = new InternalNodeMap<Slice, std::shared_ptr<Node<SliceComparator>>, SliceComparator>(n, split_key, n2);
 
-  EXPECT_EQ(inm->_v[0].first, int());
-  EXPECT_EQ(inm->_v[1].first, 4);
+  EXPECT_EQ(nm3->get("0").get(), n.get());
+  EXPECT_EQ(nm3->get("1").get(), n.get());
+  EXPECT_EQ(nm3->get("2").get(), n.get());
+  EXPECT_EQ(nm3->get("3").get(), n2.get());
+  EXPECT_EQ(nm3->get("4").get(), n2.get());
+  EXPECT_EQ(nm3->get("5").get(), n2.get());
+  EXPECT_EQ(nm3->get("6").get(), n2.get());
 
-  nm->put(-2, std::make_shared<std::string>("fu er"));
-  nm->put(-1, std::make_shared<std::string>("fu yi"));
-  nm->put(0, std::make_shared<std::string>("zero"));
-  std::shared_ptr<LeafNodeMap<int, std::shared_ptr<std::string>>> lnm3(static_cast<LeafNodeMap<int, std::shared_ptr<std::string>>*> (nm->split(split_key)));
-  std::shared_ptr<NodeMap<int, std::shared_ptr<std::string>>> nm4 = lnm3;
-  nm3->put(split_key, nm4);
+  EXPECT_TRUE(equal(nm3->_v[0].first, Slice()));
+  EXPECT_TRUE(equal(nm3->_v[1].first, "3"));
 
-  nm2->put(7, std::make_shared<std::string>("seven"));
-  nm2->put(8, std::make_shared<std::string>("eight"));
-  nm2->put(9, std::make_shared<std::string>("nine"));
-  std::shared_ptr<LeafNodeMap<int, std::shared_ptr<std::string>>> lnm4(static_cast<LeafNodeMap<int, std::shared_ptr<std::string>>*> (nm2->split(split_key)));
-  std::shared_ptr<NodeMap<int, std::shared_ptr<std::string>>> nm5 = lnm4;
-  nm3->put(split_key, nm5);
 
-  EXPECT_EQ(inm->_v[0].first, int());
-  EXPECT_EQ(inm->_v[1].first, 1);
-  EXPECT_EQ(inm->_v[2].first, 4);
-  EXPECT_EQ(inm->_v[3].first, 7);
+  n->put("0.7", Slice("fu er"));
+  n->put("0.8", Slice("fu yi"));
+  n->put("0.9", Slice("zero"));
+  EXPECT_EQ(n->need_split(), true);
+  auto n3 = n->split(split_key);
+  nm3->put(split_key, n3);
+
+  n2->put("6", Slice("six"));
+  n2->put("7", Slice("seven"));
+  EXPECT_EQ(n2->need_split(), true);
+  auto n4 = n2->split(split_key);
+  nm3->put(split_key, n4);
+
+  EXPECT_TRUE(equal(nm3->_v[0].first, Slice()));
+  EXPECT_TRUE(equal(nm3->_v[1].first, "0.9"));
+  EXPECT_TRUE(equal(nm3->_v[2].first, "3"));
+  EXPECT_TRUE(equal(nm3->_v[3].first, "5"));
+
+  InternalNodeMap<Slice, std::shared_ptr<Node<SliceComparator>>, SliceComparator>* nm4 = nm3->split(split_key);
+  EXPECT_EQ(nm3->size(), 2);
+  EXPECT_EQ(nm4->size(), 2);
 }
