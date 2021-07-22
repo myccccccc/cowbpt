@@ -29,7 +29,7 @@ TEST(NodeMapTest, LeafNodeMapCRUD) {
   EXPECT_TRUE(equal(lnm->get("4"), "four"));
   EXPECT_TRUE(equal(lnm->get("5"), "five"));
   EXPECT_TRUE(equal(lnm->get("6"), "six"));
-  EXPECT_TRUE(equal(lnm->get("7"), EMPTYSLICE));
+  EXPECT_TRUE(lnm->get("7").empty());
   EXPECT_EQ(lnm->size(), 6);
   EXPECT_TRUE(equal(lnm->_v[0].first, "1"));
   EXPECT_TRUE(equal(lnm->_v[1].first, "2"));
@@ -46,12 +46,12 @@ TEST(NodeMapTest, LeafNodeMapCRUD) {
   EXPECT_TRUE(equal(lnm->get("1"), "one"));
   EXPECT_TRUE(equal(lnm->get("2"), "two"));
   EXPECT_TRUE(equal(lnm->get("3"), "three"));
-  EXPECT_TRUE(equal(lnm->get("4"), EMPTYSLICE));
-  EXPECT_TRUE(equal(lnm->get("5"), EMPTYSLICE));
-  EXPECT_TRUE(equal(lnm->get("6"), EMPTYSLICE));
-  EXPECT_TRUE(equal(lnm2->get("1"), EMPTYSLICE));
-  EXPECT_TRUE(equal(lnm2->get("2"), EMPTYSLICE));
-  EXPECT_TRUE(equal(lnm2->get("3"), EMPTYSLICE));
+  EXPECT_TRUE(lnm->get("4").empty());
+  EXPECT_TRUE(lnm->get("5").empty());
+  EXPECT_TRUE(lnm->get("6").empty());
+  EXPECT_TRUE(lnm2->get("1").empty());
+  EXPECT_TRUE(lnm2->get("2").empty());
+  EXPECT_TRUE(lnm2->get("3").empty());
   EXPECT_TRUE(equal(lnm2->get("4"), "four"));
   EXPECT_TRUE(equal(lnm2->get("5"), "five"));
   EXPECT_TRUE(equal(lnm2->get("6"), "six"));

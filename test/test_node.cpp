@@ -21,7 +21,7 @@ TEST(NodeTest, LeafNodeCRUD) {
   std::shared_ptr<Node<SliceComparator>> n(new LeafNode<SliceComparator>(cmp));
   EXPECT_EQ(n->is_leafnode(), true);
   int node_version;
-  EXPECT_TRUE(equal(n->get_leafnode_value("1", node_version), EMPTYSLICE));
+  EXPECT_TRUE(n->get_leafnode_value("1", node_version).empty());
   EXPECT_EQ(node_version, 1);
   n->put("1", "one");
   EXPECT_TRUE(equal(n->get_leafnode_value("1", node_version), "one"));
@@ -47,12 +47,12 @@ TEST(NodeTest, LeafNodeCRUD) {
 
   EXPECT_TRUE(equal(n->get_leafnode_value("1", node_version), "ones"));
   EXPECT_TRUE(equal(n->get_leafnode_value("2", node_version), "two"));
-  EXPECT_TRUE(equal(n->get_leafnode_value("3", node_version), EMPTYSLICE));
-  EXPECT_TRUE(equal(n->get_leafnode_value("4", node_version), EMPTYSLICE));
-  EXPECT_TRUE(equal(n->get_leafnode_value("5", node_version), EMPTYSLICE));
+  EXPECT_TRUE(n->get_leafnode_value("3", node_version).empty());
+  EXPECT_TRUE(n->get_leafnode_value("4", node_version).empty());
+  EXPECT_TRUE(n->get_leafnode_value("5", node_version).empty());
 
-  EXPECT_TRUE(equal(n2->get_leafnode_value("1", node_version), EMPTYSLICE));
-  EXPECT_TRUE(equal(n2->get_leafnode_value("2", node_version), EMPTYSLICE));
+  EXPECT_TRUE(n2->get_leafnode_value("1", node_version).empty());
+  EXPECT_TRUE(n2->get_leafnode_value("2", node_version).empty());
   EXPECT_TRUE(equal(n2->get_leafnode_value("3", node_version), "three"));
   EXPECT_TRUE(equal(n2->get_leafnode_value("4", node_version), "four"));
   EXPECT_TRUE(equal(n2->get_leafnode_value("5", node_version), "five"));

@@ -26,4 +26,11 @@ TEST(SliceTest, SliceBasic) {
     EXPECT_TRUE(equal(Slice(), EMPTYSLICE));
     EXPECT_TRUE(less(EMPTYSLICE, Slice("2")));
     EXPECT_TRUE(less("0.9", "1"));
+    std::string a = "abc";
+    Slice s(std::move(a));
+    EXPECT_TRUE(a.empty());
+    EXPECT_EQ(s.string(), "abc");
+    Slice s2("cba");
+    s2 = s;
+    EXPECT_EQ(s.string(), s2.string());
 }
