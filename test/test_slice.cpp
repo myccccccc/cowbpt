@@ -33,4 +33,8 @@ TEST(SliceTest, SliceBasic) {
     Slice s2("cba");
     s2 = s;
     EXPECT_EQ(s.string(), s2.string());
+
+    Slice cnm;
+    cnm = Slice("cnm");
+    EXPECT_EQ(cnm.string(), "cnm");
 }

@@ -75,6 +75,16 @@ namespace cowbpt {
         LeafNodeMap<Key, Value, Comparator>* copy() {
             return new LeafNodeMap(_cmp, _v.begin(), _v.end());
         }
+
+        std::string dump() {
+            std::string s;
+            s.append("-----------------------------------------\n");
+            for(size_t i = 0; i < _v.size(); i++) {
+                s.append("| K: "+_v[i].first.string()+" V: "+_v[i].second.string()+" |\n");
+            }
+            s.append("-----------------------------------------\n");
+            return s;
+        }
     private:
         // find the offset of _v where _v[offset] is greater or equal to k
         // return _v length if not found
@@ -136,6 +146,19 @@ namespace cowbpt {
         }
         InternalNodeMap<Key, Value, Comparator>* copy() {
             return new InternalNodeMap(_cmp, _v.begin(), _v.end());
+        }
+
+        std::string dump() {
+            std::string s;
+            for(size_t i = 0; i < _v.size(); i++) {
+                s.append(_v[i].second->dump());
+            }
+            s.append("-----------------------------------------\n");
+            for(size_t i = 0; i < _v.size(); i++) {
+                s.append("| K: "+_v[i].first.string()+" P: "+" |\n");
+            }
+            s.append("-----------------------------------------\n");
+            return s;
         }
     private:
         // find the offset of _v where _v[offset]'s child node may contains Key down below

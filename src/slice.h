@@ -11,9 +11,9 @@ namespace cowbpt {
     class Slice {
     public:
         Slice(const Slice& s) = default;
-        Slice(Slice&& s) = delete;
+        Slice(Slice&& s) = default;
         Slice& operator = (const Slice& s) = default;
-        Slice& operator = (Slice&& s) = delete;
+        Slice& operator = (Slice&& s) = default;
 
         Slice(const char* c_string) : _s(std::make_shared<const std::string>(c_string)) {};
 

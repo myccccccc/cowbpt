@@ -38,6 +38,8 @@ public:
     virtual bool is_leafnode() = 0;
     virtual bool is_internalnode() = 0;
 
+    virtual std::string dump() = 0;
+
     void lock() {
         _mutex.lock();
     }
@@ -77,6 +79,10 @@ public:
     // need to check this node's parent node's version after searching this node
     virtual LeafNodeValue get_leafnode_value(const Key& k, int& node_version) = 0;
 
+    virtual InternalNodeValue get_internalnode_value(const Key& k) = 0;
+
+    virtual LeafNodeValue get_leafnode_value(const Key& k) = 0;
+
     // need to hold the lock (lock coupling) before call put
     // if this is a leaf node, panic
     virtual void put(const Key& k, InternalNodeValue v) = 0;
@@ -94,8 +100,8 @@ public:
     // TODO: delete and copy
 
 protected:
-    std::mutex _mutex; // when a shared ptr is accessed by mutiple threads, it needs external sync
     std::atomic<int> _version; // the node version will increment 1 for every write on this node
+    std::mutex _mutex; // when a shared ptr is accessed by mutiple threads, it needs external sync
     const Comparator _cmp;
 };
 
@@ -111,6 +117,10 @@ private:
 public:
     LeafNode(Comparator cmp)
     : LeafNode(std::make_shared<KVMap>(cmp), cmp) {
+    }
+
+    virtual std::string dump() override {
+        return _kvmap->dump();
     }
 
     virtual bool is_leafnode() override {
@@ -132,6 +142,11 @@ public:
         return nullptr;
     }
 
+    virtual InternalNodeValue get_internalnode_value(const Key& k) override {
+        assert(false);
+        return nullptr;
+    }
+
     // if this is a leaf node, get reutrns the pointer to the value if target key exist, otherwise nullptr
     // if this is an internal node, panic
     // need to check this node's parent node's version after searching this node
@@ -144,6 +159,11 @@ public:
             node_version = Node<Comparator>::_version.load(std::memory_order_acquire);
         }
         return kvmap->get(k);
+    }
+
+    virtual LeafNodeValue get_leafnode_value(const Key& k) override {
+        // TODO: assert _mutex is locked
+        return _kvmap->get(k);
     }
 
     // need to hold the lock (lock coupling) before call put
@@ -204,6 +224,10 @@ public:
         return true;
     }
 
+    virtual std::string dump() override {
+        return _kvmap->dump();
+    }
+    
     virtual size_t size() override {
         return _kvmap->size();
     }
@@ -222,10 +246,20 @@ public:
         return kvmap->get(k);
     }
 
+    virtual InternalNodeValue get_internalnode_value(const Key& k) override {
+        // TODO: assert _mutex is locked
+        return _kvmap->get(k);
+    }
+
     // if this is a leaf node, get reutrns the pointer to the value if target key exist, otherwise nullptr
     // if this is an internal node, panic
     // need to check this node's parent node's version after searching this node
     virtual LeafNodeValue get_leafnode_value(const Key& k, int& node_version) override {
+        assert(false);
+        return LeafNodeValue();
+    }
+
+    virtual LeafNodeValue get_leafnode_value(const Key& k) override {
         assert(false);
         return LeafNodeValue();
     }
