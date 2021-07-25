@@ -174,6 +174,10 @@ void del_thread(Bpt* bt, std::vector<std::string>* v1, std::vector<std::string>*
 void read_thread(Bpt* bt, std::vector<std::string>* v2, std::mutex* m) {
     while (true) {
         m->lock();
+        if (v2->empty()) {
+            m->unlock();
+            continue;
+        }
         int size = v2->size();
         std::string s = (*v2)[rand_int() % size];
         m->unlock();
@@ -188,6 +192,10 @@ void read_thread(Bpt* bt, std::vector<std::string>* v2, std::mutex* m) {
 void read_del_thread(Bpt* bt, std::vector<std::string>* v2, std::mutex* m) {
     while (true) {
         m->lock();
+        if (v2->empty()) {
+            m->unlock();
+            continue;
+        }
         int size = v2->size();
         std::string s = (*v2)[rand_int() % size];
         m->unlock();
