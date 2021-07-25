@@ -58,10 +58,11 @@ namespace cowbpt {
         LeafNodeMap<Key, Value, Comparator>* copy() {
             return new LeafNodeMap(_cmp, _v.begin(), _v.end());
         }
-        std::pair<Key, Value> pop_first_leaf_node_value_and_second_key() {
+        std::pair<Key, Value> pop_first_leaf_node_value_and_second_key(Key& first_key) {
             assert(size() >= 2);
             auto p = _v.front();
             _v.pop_front();
+            first_key = p.first;
             return std::make_pair(_v.front().first, p.second);
         }
         std::pair<Key, Value> pop_last_leaf_node_value_and_last_key() {
@@ -70,10 +71,8 @@ namespace cowbpt {
             _v.pop_back();
             return p;
         }
-        void append_right(LeafNodeMap<Key, Value, Comparator>* right, Key right_k) {
-            auto offset = _v.size();
+        void append_right(LeafNodeMap<Key, Value, Comparator>* right) {
             _v.insert(_v.end(), right->_v.begin(), right->_v.end());
-            _v[offset].first = right_k;
             right->_v.clear();
         }
 
@@ -144,6 +143,9 @@ namespace cowbpt {
             _v.erase(_v.begin() + offset);
         }
         Value get(const Key& k) {
+            if (size() == 0) {
+                return nullptr;
+            }
             auto offset = find_greater_or_equal(k);
             if (size() > 1 && offset < size() && !_cmp(k, _v[offset].first) && !_cmp(_v[offset].first, k)) {
                 return _v[offset].second;

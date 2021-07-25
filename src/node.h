@@ -134,7 +134,7 @@ friend class InternalNode<Comparator>;
 private:
 
     virtual std::pair<Key, InternalNodeValue> pop_first_internal_node_value_and_second_key() = 0;
-    virtual std::pair<Key, LeafNodeValue> pop_first_leaf_node_value_and_second_key() = 0;
+    virtual std::pair<Key, LeafNodeValue> pop_first_leaf_node_value_and_second_key(Key& first_key) = 0;
 
     virtual std::pair<Key, InternalNodeValue> pop_last_internal_node_value_and_last_key() = 0;
     virtual std::pair<Key, LeafNodeValue> pop_last_leaf_node_value_and_last_key() = 0;
@@ -265,9 +265,9 @@ private:
         assert(false);
         return std::make_pair(Key(), nullptr);
     }
-    virtual std::pair<Key, LeafNodeValue> pop_first_leaf_node_value_and_second_key() override {
+    virtual std::pair<Key, LeafNodeValue> pop_first_leaf_node_value_and_second_key(Key& first_key) override {
         cow();
-        auto a = _kvmap->pop_first_leaf_node_value_and_second_key();
+        auto a = _kvmap->pop_first_leaf_node_value_and_second_key(first_key);
         this->increase_version();
         return a;
     }
@@ -286,7 +286,7 @@ private:
         auto r = dynamic_cast<LeafNode<Comparator>*>(right.get());
         cow();
         r->cow();
-        _kvmap->append_right(r->_kvmap.get(), right_k);
+        _kvmap->append_right(r->_kvmap.get());
         this->increase_version();
         right->increase_version();
     }
@@ -455,10 +455,11 @@ private:
     bool borrow_from_right_node(const NodePtr& left, const NodePtr& right, const Key& right_k) {
         if(right->need_fix(false)) return false;
         if (right->is_leafnode()) {
-            auto p = right->pop_first_leaf_node_value_and_second_key();
+            Key k;
+            auto p = right->pop_first_leaf_node_value_and_second_key(k);
             Key new_right_k = p.first;
             LeafNodeValue borrowed_value = p.second;
-            left->put(right_k, borrowed_value);
+            left->put(k, borrowed_value);
             this->erase(right_k);
             this->put(new_right_k, right);
         } else {
@@ -532,7 +533,7 @@ private:
         this->increase_version();
         return a;
     }
-    virtual std::pair<Key, LeafNodeValue> pop_first_leaf_node_value_and_second_key() override {
+    virtual std::pair<Key, LeafNodeValue> pop_first_leaf_node_value_and_second_key(Key& first_key) override {
         assert(false);
         return std::make_pair(Key(), LeafNodeValue());
     }

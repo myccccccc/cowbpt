@@ -57,6 +57,9 @@ namespace cowbpt {
               
             }
           }
+          if (child->is_internalnode() && new_child == nullptr) {
+            assert(version_checked == false); 
+          }
 
 
           if (version_checked) {
@@ -161,7 +164,7 @@ namespace cowbpt {
     
       while (true) {
         if (child->need_fix(parent == nullptr)) {
-          if (parent == nullptr && !hold_root_lock) { // need split root, retry and get the root lock
+          if (parent == nullptr && !hold_root_lock) { // need fix root, retry and get the root lock
             child->unlock();
             hold_root_lock = true;
             goto retry; 

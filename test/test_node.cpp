@@ -71,10 +71,11 @@ TEST(NodeTest, LeafNodeCRUD) {
   EXPECT_TRUE(n->get_leafnode_value("4", node_version).empty());
   EXPECT_TRUE(n->get_leafnode_value("5", node_version).empty());
 
-  auto p = n2->pop_first_leaf_node_value_and_second_key();
+  Slice k;
+  auto p = n2->pop_first_leaf_node_value_and_second_key(k);
   EXPECT_EQ(p.first.string(), "4");
   EXPECT_EQ(p.second.string(), "three");
-  p = n2->pop_first_leaf_node_value_and_second_key();
+  p = n2->pop_first_leaf_node_value_and_second_key(k);
   EXPECT_EQ(p.first.string(), "5");
   EXPECT_EQ(p.second.string(), "four");
 

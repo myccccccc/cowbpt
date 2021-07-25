@@ -72,13 +72,14 @@ TEST(NodeMapTest, LeafNodeMapCRUD) {
 
   auto b = lnm2->_v[0].second;
   auto a = lnm2->_v[1].first;
-  auto p = lnm2->pop_first_leaf_node_value_and_second_key();
+  Slice k;
+  auto p = lnm2->pop_first_leaf_node_value_and_second_key(k);
   EXPECT_TRUE(equal(p.first, a));
   EXPECT_TRUE(equal(p.second, b));
 
   b = lnm2->_v[0].second;
   a = lnm2->_v[1].first;
-  p = lnm2->pop_first_leaf_node_value_and_second_key();
+  p = lnm2->pop_first_leaf_node_value_and_second_key(k);
   EXPECT_TRUE(equal(p.first, a));
   EXPECT_TRUE(equal(p.second, b));
 
@@ -90,7 +91,7 @@ TEST(NodeMapTest, LeafNodeMapCRUD) {
   lnm3->put("3", Slice("three"));
   lnm3->put("5", Slice("five"));
   LeafNodeMap<Slice, Slice, SliceComparator>* lnm4 = lnm3->split(split_key);
-  lnm3->append_right(lnm4, split_key);
+  lnm3->append_right(lnm4);
   EXPECT_EQ(lnm3->size(), 6);
   EXPECT_EQ(lnm4->size(), 0);
   EXPECT_TRUE(equal(lnm3->_v[0].first, "1"));
