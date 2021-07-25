@@ -144,4 +144,69 @@ namespace cowbpt {
       child->put(key, value);
       child->unlock();
     }
+
+    void Bpt::erase(const Slice& key) {
+      NodePtr parent = nullptr;
+      NodePtr child = nullptr;
+      bool hold_root_lock = false;
+
+          retry:
+          _mutex.lock();
+          parent = nullptr;
+          child = _root;
+          child->lock();
+          if (!hold_root_lock) {
+            _mutex.unlock();
+          }
+    
+      while (true) {
+        if (child->need_fix(parent == nullptr)) {
+          if (parent == nullptr && !hold_root_lock) { // need split root, retry and get the root lock
+            child->unlock();
+            hold_root_lock = true;
+            goto retry; 
+          }
+
+          if (parent != nullptr)  { // fix non root node
+            parent->fix_child(key);
+          } else { // fix root node
+            assert(hold_root_lock);
+            NodePtr new_root_node = _root->get_internalnode_value(Slice());
+            new_root_node->lock();
+            _root = new_root_node; 
+            child = new_root_node;
+          }
+
+          if (hold_root_lock) {
+            _mutex.unlock();
+            hold_root_lock = false;
+          }
+          if (parent == nullptr) {
+            continue;
+          }
+          child->unlock();
+          child = parent->get_internalnode_value(key);
+          child->lock();
+          continue;
+        }
+
+        if (hold_root_lock) {
+            _mutex.unlock();
+            hold_root_lock = false;
+        }
+        if (parent != nullptr) {
+          parent->unlock();
+        }
+        if (child->is_leafnode()) {
+          break;
+        }
+        parent = child;
+        child = parent->get_internalnode_value(key);
+        child->lock();
+      }
+
+      child->erase(key);
+      child->unlock();
+    
+    }
 }

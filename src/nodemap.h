@@ -1,4 +1,4 @@
-#include <vector>
+#include <deque>
 #include <algorithm>
 #include <memory>
 
@@ -6,35 +6,11 @@
 #define NODEMAP_H
 
 namespace cowbpt {
-    // // key-value map inside the internal node or leaf node
-    // template <typename Key, typename Value, typename Comparator = std::less<Key>>
-    // class NodeMap {
-    // public:
-    //     virtual ~NodeMap() = default;
-    //     // return the size of the nodemap, not thread safe
-    //     virtual size_t size() = 0;
-    //     // if this is a leaf node update(alread exist) or insert(not exist) a key value pair
-    //     // if this is an internal node insert a key value pair
-    //     // not thread safe
-    //     virtual void put(const Key& k, const Value& v) = 0; 
-    //     // if this is an internal node map, get returns a pointer to the child node that may contains Key down below
-    //     // if this is a leaf node map, get returns a pointer to the value if Key exists, otherwise nullptr
-    //     // not thread safe 
-    //     virtual Value get(const Key& k) = 0;
-    //     // split half of this node's key-value pairs to another nodemap, 
-    //     // k is set to be the first key at the right half split
-    //     // not thread safe 
-    //     virtual NodeMap* split(Key& k) = 0;
-    //     // copy
-    //     // not thread safe
-    //     virtual NodeMap* copy() = 0;
-    //     // TODO: delete
-    // };
 
     template <typename Key, typename Value, typename Comparator>
     class LeafNodeMap {
     private:
-        typedef std::vector<std::pair<Key, Value>> ArrayMap;
+        typedef std::deque<std::pair<Key, Value>> ArrayMap;
         LeafNodeMap(Comparator cmp, typename ArrayMap::iterator begin, typename ArrayMap::iterator end)
         : _v(begin, end),
           _cmp(cmp) {
@@ -57,6 +33,13 @@ namespace cowbpt {
                 _v.insert(_v.begin()+offset, std::make_pair(k, v));
             }
         }
+        void erase(const Key& k) {
+            auto offset = find_greater_or_equal(k);
+            if (offset < _v.size() && !_cmp(k, _v[offset].first) && !_cmp(_v[offset].first, k)) {
+                // found k
+                _v.erase(_v.begin() + offset);
+            }
+        }
         Value get(const Key& k) {
             auto offset = find_greater_or_equal(k);
             if (offset < _v.size() && !_cmp(k, _v[offset].first) && !_cmp(_v[offset].first, k)) {
@@ -74,6 +57,24 @@ namespace cowbpt {
         }
         LeafNodeMap<Key, Value, Comparator>* copy() {
             return new LeafNodeMap(_cmp, _v.begin(), _v.end());
+        }
+        std::pair<Key, Value> pop_first_leaf_node_value_and_second_key() {
+            assert(size() >= 2);
+            auto p = _v.front();
+            _v.pop_front();
+            return std::make_pair(_v.front().first, p.second);
+        }
+        std::pair<Key, Value> pop_last_leaf_node_value_and_last_key() {
+            assert(size() >= 2);
+            auto p = _v.back();
+            _v.pop_back();
+            return p;
+        }
+        void append_right(LeafNodeMap<Key, Value, Comparator>* right, Key right_k) {
+            auto offset = _v.size();
+            _v.insert(_v.end(), right->_v.begin(), right->_v.end());
+            _v[offset].first = right_k;
+            right->_v.clear();
         }
 
         std::string dump() {
@@ -107,7 +108,7 @@ namespace cowbpt {
     template <typename Key, typename Value, typename Comparator>
     class InternalNodeMap {
     private:
-        typedef std::vector<std::pair<Key, Value>> ArrayMap;
+        typedef std::deque<std::pair<Key, Value>> ArrayMap;
         InternalNodeMap(Comparator cmp, typename ArrayMap::iterator begin, typename ArrayMap::iterator end)
         : _v(begin, end),
           _cmp(cmp) {
@@ -130,6 +131,18 @@ namespace cowbpt {
             // this is an insertion
             _v.insert(_v.begin()+offset, std::make_pair(k, v));
         }
+        // push this internalnodevalue to the front of is node, and the previous front key is set to right_k
+        void push_front(const Value& v, const Key& right_k) {
+           assert(size() > 0);
+           _v[0].first = right_k;
+           _v.push_front(std::make_pair(Key(), v)); 
+        }
+        void erase(const Key& k) {
+            auto offset = find_greater_or_equal(k);
+            // internal node will not delete a not existing key
+            assert(offset < _v.size() && !_cmp(k, _v[offset].first) && !_cmp(_v[offset].first, k));
+            _v.erase(_v.begin() + offset);
+        }
         Value get(const Key& k) {
             auto offset = find_greater_or_equal(k);
             if (size() > 1 && offset < size() && !_cmp(k, _v[offset].first) && !_cmp(_v[offset].first, k)) {
@@ -137,6 +150,48 @@ namespace cowbpt {
             }
             return _v[offset-1].second;
         }
+
+
+        std::pair<Key, Value> get_middle(const Key& k) {
+            auto offset = find_greater_or_equal(k);
+            if (size() > 1 && offset < size() && !_cmp(k, _v[offset].first) && !_cmp(_v[offset].first, k)) {
+                return _v[offset];
+            } else {
+                return _v[offset-1];
+            }
+        }
+        // return the node and its corresponding key, that is at the right of the node which might contains k down below
+        // return nullptr if don't have right node
+        std::pair<Key, Value> get_right(const Key& k) {
+            size_t i;
+            auto offset = find_greater_or_equal(k);
+            if (size() > 1 && offset < size() && !_cmp(k, _v[offset].first) && !_cmp(_v[offset].first, k)) {
+                i = offset + 1;
+            } else {
+                i = offset-1 + 1;
+            }
+            assert(i <= size());
+            if (i == size()) {
+                return std::make_pair(Key(), nullptr);
+            }
+            return _v[i];
+        }
+        // return the node and its corresponding key, that is at the left of the node which might contains k down below
+        // return nullptr if don't have left node (impossible)
+        std::pair<Key, Value> get_left(const Key& k) {
+            size_t i;
+            auto offset = find_greater_or_equal(k);
+            if (size() > 1 && offset < size() && !_cmp(k, _v[offset].first) && !_cmp(_v[offset].first, k)) {
+                i = offset - 1;
+            } else {
+                i = offset-1 - 1;
+            }
+            assert(size() >= 0 && i >= 0);
+            return _v[i];
+        }
+
+
+
         InternalNodeMap<Key, Value, Comparator>* split(Key& k) {
             auto offset = _v.size() / 2;
             k = _v[offset].first;
@@ -146,6 +201,24 @@ namespace cowbpt {
         }
         InternalNodeMap<Key, Value, Comparator>* copy() {
             return new InternalNodeMap(_cmp, _v.begin(), _v.end());
+        }
+        std::pair<Key, Value> pop_first_internal_node_value_and_second_key() {
+            assert(size() >= 2);
+            auto p = _v.front();
+            _v.pop_front();
+            return std::make_pair(_v.front().first, p.second);
+        }
+        std::pair<Key, Value> pop_last_internal_node_value_and_last_key() {
+            assert(size() >= 2);
+            auto p = _v.back();
+            _v.pop_back();
+            return p;
+        }
+        virtual void append_right(InternalNodeMap<Key, Value, Comparator>* right, Key right_k) {
+            auto offset = _v.size();
+            _v.insert(_v.end(), right->_v.begin(), right->_v.end());
+            _v[offset].first = right_k;
+            right->_v.clear();
         }
 
         std::string dump() {

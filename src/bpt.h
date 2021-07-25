@@ -33,6 +33,7 @@ namespace cowbpt {
         ~Bpt() = default;
         
         void put(const Slice& key, const Slice& value);
+        void erase(const Slice& key);
         Slice get(const Slice& key); // return an empty slice if key do not exist
 
         std::string dump();

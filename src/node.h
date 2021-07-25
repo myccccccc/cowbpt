@@ -14,6 +14,11 @@ namespace cowbpt {
 
 DECLARE_int32(COWBPT_NODE_B_SZIE);
 
+template <typename Comparator>
+class InternalNode;
+template <typename Comparator>
+class LeafNode;
+
 // A copy on write node impl, it can be a leaf node or an internal node
 // it allows current reads without external sync
 // and use lock coupling for write
@@ -63,7 +68,14 @@ public:
     }
 
     // need to hold the lock (lock coupling) before call need_fix
-    bool need_fix() {
+    bool need_fix(bool is_root_node) {
+        if (is_root_node) {
+            if(is_leafnode()) {
+                return false;
+            }
+            assert(size() >= 1);
+            return size() == 1;
+        }
         // TODO: assert _mutex is locked
         assert(size() >= FLAGS_COWBPT_NODE_B_SZIE);
         return size() == FLAGS_COWBPT_NODE_B_SZIE;
@@ -91,18 +103,47 @@ public:
     // if this is an internal node, panic
     virtual void put(const Key& k, LeafNodeValue v) = 0;
 
+    // need to hold the lock (lock coupling) before call erase
+    virtual void erase(const Key& k) = 0;
 
     // return a poniter to the right half split of the node
     // k is set to the first key in the right half split of the node
     // need to hold the lock (lock coupling) before call split
     virtual NodePtr split(Key& k) = 0;
 
-    // TODO: delete and copy
+    // only internal node can call fix_child
+    // find the child node by key, fix this node
+    virtual void fix_child(const Key& k) = 0;
+
+    // TODO: copy
 
 protected:
     std::atomic<int> _version; // the node version will increment 1 for every write on this node
     std::mutex _mutex; // when a shared ptr is accessed by mutiple threads, it needs external sync
     const Comparator _cmp;
+
+protected:
+    void increase_version() {
+        _version.fetch_add(1, std::memory_order_release);
+    }
+
+
+friend class LeafNode<Comparator>;
+friend class InternalNode<Comparator>;
+
+private:
+
+    virtual std::pair<Key, InternalNodeValue> pop_first_internal_node_value_and_second_key() = 0;
+    virtual std::pair<Key, LeafNodeValue> pop_first_leaf_node_value_and_second_key() = 0;
+
+    virtual std::pair<Key, InternalNodeValue> pop_last_internal_node_value_and_last_key() = 0;
+    virtual std::pair<Key, LeafNodeValue> pop_last_leaf_node_value_and_last_key() = 0;
+
+    // push this internalnodevalue to the front of is node, and the previous front key is set to right_k
+    virtual void push_front(InternalNodeValue v, Key right_k) = 0;
+
+    // append all kv pairs of the right node, to this node, and clear right node
+    virtual void append_right(NodePtr right, Key right_k) = 0;
 };
 
 template <typename Comparator>
@@ -175,21 +216,32 @@ public:
     // need to hold the lock (lock coupling) before call put
     // if this is an internal node, panic
     virtual void put(const Key& k, LeafNodeValue v) override {
-        // TODO: assert _mutex is locked
-        if (!_kvmap.unique()) {
-            _kvmap.reset(_kvmap->copy());
-        }
-        assert(_kvmap.unique());
+        cow();
         _kvmap->put(k, v);
-        Node<Comparator>::_version.fetch_add(1, std::memory_order_release);
+        this->increase_version();
+    }
+
+    // need to hold the lock (lock coupling) before call erase
+    virtual void erase(const Key& k) override {
+        cow();
+        _kvmap->erase(k);
+        this->increase_version();
     }
 
     NodePtr split(Key& k) override {
-        // TODO: assert _mutex is locked
+        cow();
         KVMapPtr rhs_kv_map(_kvmap->split(k));
         NodePtr p(new LeafNode<Comparator>(rhs_kv_map, Node<Comparator>::_cmp));
+        this->increase_version();
         return p;
     }
+
+    // only internal node can call fix_child
+    // find the child node by key, fix this node
+    virtual void fix_child(const Key& k) override {
+        assert(false);
+    }
+
 private:
     LeafNode(KVMapPtr p, Comparator cmp)
     : Node<Comparator>(cmp),
@@ -197,8 +249,51 @@ private:
 
     }
 
+    void cow() {
+        // TODO: assert _mutex is locked
+        if (!_kvmap.unique()) {
+            _kvmap.reset(_kvmap->copy());
+        }
+        assert(_kvmap.unique());
+    }
+
 private:
     KVMapPtr _kvmap;
+
+private:
+    virtual std::pair<Key, InternalNodeValue> pop_first_internal_node_value_and_second_key() override {
+        assert(false);
+        return std::make_pair(Key(), nullptr);
+    }
+    virtual std::pair<Key, LeafNodeValue> pop_first_leaf_node_value_and_second_key() override {
+        cow();
+        auto a = _kvmap->pop_first_leaf_node_value_and_second_key();
+        this->increase_version();
+        return a;
+    }
+    virtual std::pair<Key, InternalNodeValue> pop_last_internal_node_value_and_last_key() override {
+        assert(false);
+        return std::make_pair(Key(), nullptr);
+    }
+    virtual std::pair<Key, LeafNodeValue> pop_last_leaf_node_value_and_last_key() override {
+        cow();
+        auto a = _kvmap->pop_last_leaf_node_value_and_last_key();
+        this->increase_version();
+        return a;
+    }
+    // append all kv pairs of the right node, to this node, and clear right node
+    virtual void append_right(NodePtr right, Key right_k) override {
+        auto r = dynamic_cast<LeafNode<Comparator>*>(right.get());
+        cow();
+        r->cow();
+        _kvmap->append_right(r->_kvmap.get(), right_k);
+        this->increase_version();
+        right->increase_version();
+    }
+    // push this internalnodevalue to the front of is node, and the previous front key is set to right_k
+    virtual void push_front(InternalNodeValue v, Key right_k) override {
+        assert(false);
+    }
 };
 
 template <typename Comparator>
@@ -267,13 +362,9 @@ public:
     // need to hold the lock (lock coupling) before call put
     // if this is a leaf node, panic
     virtual void put(const Key& k, InternalNodeValue v) override {
-        // TODO: assert _mutex is locked
-        if (!_kvmap.unique()) {
-            _kvmap.reset(_kvmap->copy());
-        }
-        assert(_kvmap.unique());
+        cow();
         _kvmap->put(k, v);
-        Node<Comparator>::_version.fetch_add(1, std::memory_order_release);
+        this->increase_version();
     }
 
     // need to hold the lock (lock coupling) before call put
@@ -282,12 +373,140 @@ public:
         assert(false);
     }
 
+    // need to hold the lock (lock coupling) before call erase
+    virtual void erase(const Key& k) override {
+        cow();
+        _kvmap->erase(k);
+        this->increase_version();
+    }
+
     NodePtr split(Key& k) override {
-        // TODO: assert _mutex is locked
+        cow();
         KVMapPtr rhs_kv_map(_kvmap->split(k));
         NodePtr p(new InternalNode<Comparator>(rhs_kv_map, Node<Comparator>::_cmp));
+        this->increase_version();
         return p;
     }
+
+    // only internal node can call fix_child
+    // find the child node by key, fix this node
+    virtual void fix_child(const Key& k) override {
+        bool fixed = false;
+
+        auto middle_node_kv = get_middle_node(k);
+        Key middle_node_key = middle_node_kv.first;
+        NodePtr need_fix_child = middle_node_kv.second;
+        assert(need_fix_child->need_fix(false));
+
+        auto right_node_kv = get_right_node(k);
+        Key right_node_key = right_node_kv.first;
+        NodePtr right_node = right_node_kv.second;
+        if (right_node != nullptr) {
+            right_node->lock();
+
+            if (borrow_from_right_node(need_fix_child, right_node, right_node_key)) {
+                fixed = true;
+            } else if (merge_right_into_left(need_fix_child, right_node, right_node_key)){
+                fixed = true;
+            }
+
+            right_node->unlock();
+            if(fixed) return;
+        }
+
+        auto left_node_kv = get_left_node(k);
+        Key left_node_key = left_node_kv.first;
+        NodePtr left_node = left_node_kv.second;
+        if (left_node != nullptr) {
+            left_node->lock();
+
+            if (borrow_from_left_node(left_node, need_fix_child, middle_node_key)) {
+                fixed = true;
+            } else if (merge_right_into_left(left_node, need_fix_child, middle_node_key)){
+                fixed = true;
+            }
+
+            left_node->unlock();
+            if(fixed) return;
+        }
+        
+        assert(false);
+    }
+
+private:
+    // return the node and its corresponding key, that is at the right of the node which might contains k down below
+    // return nullptr if don't have right node
+    std::pair<Key, NodePtr> get_right_node(const Key& k) {
+        return _kvmap->get_right(k);
+    }
+
+    // return the node and its corresponding key, that might contains k down below
+    std::pair<Key, NodePtr> get_middle_node(const Key& k) {
+        return _kvmap->get_middle(k);
+    }
+
+    // return the node and its corresponding key, that is at the left of the node which might contains k down below
+    // return nullptr if don't have left node (impossible)
+    std::pair<Key, NodePtr> get_left_node(const Key& k) {
+        return _kvmap->get_left(k);
+    }
+
+    // TODO: only borrow one from right node, maybe borrow more?
+    bool borrow_from_right_node(const NodePtr& left, const NodePtr& right, const Key& right_k) {
+        if(right->need_fix(false)) return false;
+        if (right->is_leafnode()) {
+            auto p = right->pop_first_leaf_node_value_and_second_key();
+            Key new_right_k = p.first;
+            LeafNodeValue borrowed_value = p.second;
+            left->put(right_k, borrowed_value);
+            this->erase(right_k);
+            this->put(new_right_k, right);
+        } else {
+            auto p = right->pop_first_internal_node_value_and_second_key();
+            Key new_right_k = p.first;
+            InternalNodeValue borrowed_value = p.second;
+            left->put(right_k, borrowed_value);
+            this->erase(right_k);
+            this->put(new_right_k, right);
+        }
+        assert(!left->need_fix(false));
+        return true;
+    }
+
+    
+    // TODO: only borrow one from left node, maybe borrow more?
+    bool borrow_from_left_node(const NodePtr& left, const NodePtr& right, const Key& right_k) {
+        if(left->need_fix(false)) return false;
+        if (left->is_leafnode()) {
+            auto p = left->pop_last_leaf_node_value_and_last_key();
+            Key new_right_k = p.first;
+            LeafNodeValue borrowed_value = p.second;
+            right->put(new_right_k, borrowed_value);
+            this->erase(right_k);
+            this->put(new_right_k, right);
+        } else {
+            auto p = left->pop_last_internal_node_value_and_last_key();
+            Key new_right_k = p.first;
+            InternalNodeValue borrowed_value = p.second;
+            right->push_front(borrowed_value, right_k);
+            this->erase(right_k);
+            this->put(new_right_k, right);
+        }
+        assert(!right->need_fix(false));
+        return true;
+    }
+
+    bool merge_right_into_left(const NodePtr& left, const NodePtr& right, const Key& right_k) {
+        assert(left->need_fix(false) && right->need_fix(false));
+
+        this->erase(right_k);
+        left->append_right(right, right_k);
+
+        assert(right->size() == 0);
+        assert(!left->need_fix(false));
+        return true;
+    }
+
 private:
     InternalNode(KVMapPtr p, Comparator cmp)
     : Node<Comparator>(cmp),
@@ -295,8 +514,53 @@ private:
 
     }
 
+    void cow() {
+        // TODO: assert _mutex is locked
+        if (!_kvmap.unique()) {
+            _kvmap.reset(_kvmap->copy());
+        }
+        assert(_kvmap.unique());
+    }
+
 private:
     KVMapPtr _kvmap;
+
+private:
+    virtual std::pair<Key, InternalNodeValue> pop_first_internal_node_value_and_second_key() override {
+        cow();
+        auto a = _kvmap->pop_first_internal_node_value_and_second_key();
+        this->increase_version();
+        return a;
+    }
+    virtual std::pair<Key, LeafNodeValue> pop_first_leaf_node_value_and_second_key() override {
+        assert(false);
+        return std::make_pair(Key(), LeafNodeValue());
+    }
+    virtual std::pair<Key, InternalNodeValue> pop_last_internal_node_value_and_last_key() override {
+        cow();
+        auto a = _kvmap->pop_last_internal_node_value_and_last_key();
+        this->increase_version();
+        return a;
+    }
+    virtual std::pair<Key, LeafNodeValue> pop_last_leaf_node_value_and_last_key() override {
+        assert(false);
+        return std::make_pair(Key(), LeafNodeValue());
+    }
+    // append all kv pairs of the right node, to this node, and clear right node
+    virtual void append_right(NodePtr right, Key right_k) override {
+        auto r = dynamic_cast<InternalNode<Comparator>*>(right.get());
+        cow();
+        r->cow();
+        _kvmap->append_right(r->_kvmap.get(), right_k);
+        this->increase_version();
+        right->increase_version();
+    }
+    // push this internalnodevalue to the front of is node, and the previous front key is set to right_k
+    virtual void push_front(InternalNodeValue v, Key right_k) {
+        cow();
+        _kvmap->push_front(v, right_k);
+        this->increase_version();
+    }
 };
 
 }
