@@ -30,6 +30,14 @@ namespace cowbpt {
         std::shared_ptr<const std::string> stringPtr() const {
             return _s; 
         }
+
+        size_t size() const {
+            return _s->size();
+        }
+        
+        const char* c_string() const {
+            return _s->c_str();
+        }
         
     private:
         std::shared_ptr<const std::string> _s;
