@@ -103,8 +103,8 @@ namespace cowbpt {
 
     Status(Code code, const Slice& msg) : _code(code), _msg(msg) {}
 
-    Slice _msg;
     Code _code;
+    Slice _msg;
     };
 
 }

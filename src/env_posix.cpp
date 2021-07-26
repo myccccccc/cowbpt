@@ -395,7 +395,7 @@ namespace cowbpt {
     //     *result = env;
     //     } else {
     //     char buf[100];
-    //     std::snprintf(buf, sizeof(buf), "/tmp/leveldbtest-%d",
+    //     std::snprintf(buf, sizeof(buf), "/tmp/cowbpttest-%d",
     //                     static_cast<int>(::geteuid()));
     //     *result = buf;
     //     }

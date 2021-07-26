@@ -167,7 +167,7 @@ namespace cowbpt {
         SequentialFile(const SequentialFile&) = delete;
         SequentialFile& operator=(const SequentialFile&) = delete;
 
-        virtual ~SequentialFile();
+        virtual ~SequentialFile() = default;
 
         // Read up to "n" bytes from the file.  "scratch[0..n-1]" may be
         // written by this routine.  Sets "*result" to the data that was
@@ -199,7 +199,7 @@ namespace cowbpt {
         WritableFile(const WritableFile&) = delete;
         WritableFile& operator=(const WritableFile&) = delete;
 
-        virtual ~WritableFile();
+        virtual ~WritableFile() = default;
 
         virtual Status Append(const Slice& data) = 0;
         virtual Status Close() = 0;

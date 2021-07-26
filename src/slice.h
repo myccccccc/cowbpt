@@ -1,5 +1,6 @@
 #include <string>
 #include <memory>
+#include <cassert>
 
 
 #ifndef SLICE_H
@@ -16,6 +17,7 @@ namespace cowbpt {
         Slice& operator = (Slice&& s) = default;
 
         Slice(const char* c_string) : _s(std::make_shared<const std::string>(c_string)) {};
+        Slice(const char* c_string, size_t n) : _s(std::make_shared<const std::string>(c_string, n)) {};
 
         Slice(std::string&& s): _s(std::make_shared<const std::string>(std::move(s))) {};
         Slice(const std::string& s): _s(std::make_shared<const std::string>(s)) {};
@@ -36,7 +38,17 @@ namespace cowbpt {
         }
         
         const char* c_string() const {
-            return _s->c_str();
+            auto s = new std::string(*_s);
+            return s->c_str(); // TODO: mem leak here
+        }
+
+        void remove_prefix(size_t n) {
+            assert(n <= size());
+            _s.reset(new std::string(_s->begin()+n, _s->end()));
+        }
+        
+        void clear() {
+            _s.reset(new std::string());
         }
         
     private:
