@@ -9,18 +9,20 @@
 namespace cowbpt {
     class SequentialFile;
     class WritableFile;
+    class RandomAccessFile;
 
     typedef std::shared_ptr<SequentialFile> SequentialFilePtr;
     typedef std::shared_ptr<WritableFile> WritableFilePtr;
+    typedef std::shared_ptr<RandomAccessFile> RandomAccessFilePtr;
 
     class Env {
     public:
-        Env();
+        Env() = default;
 
         Env(const Env&) = delete;
         Env& operator=(const Env&) = delete;
 
-        virtual ~Env();
+        virtual ~Env() = default;
 
         // Return a default environment suitable for the current operating
         // system.  Sophisticated users may wish to provide their own Env
@@ -39,16 +41,16 @@ namespace cowbpt {
         virtual Status NewSequentialFile(const std::string& fname,
                                         SequentialFilePtr& result) = 0;
 
-        // // Create an object supporting random-access reads from the file with the
-        // // specified name.  On success, stores a pointer to the new file in
-        // // *result and returns OK.  On failure stores nullptr in *result and
-        // // returns non-OK.  If the file does not exist, returns a non-OK
-        // // status.  Implementations should return a NotFound status when the file does
-        // // not exist.
-        // //
-        // // The returned file may be concurrently accessed by multiple threads.
-        // virtual Status NewRandomAccessFile(const std::string& fname,
-        //                                    RandomAccessFile** result) = 0;
+        // Create an object supporting random-access reads from the file with the
+        // specified name.  On success, stores a pointer to the new file in
+        // *result and returns OK.  On failure stores nullptr in *result and
+        // returns non-OK.  If the file does not exist, returns a non-OK
+        // status.  Implementations should return a NotFound status when the file does
+        // not exist.
+        //
+        // The returned file may be concurrently accessed by multiple threads.
+        virtual Status NewRandomAccessFile(const std::string& fname,
+                                           RandomAccessFilePtr result) = 0;
 
         // Create an object that writes to a new file with the specified
         // name.  Deletes any existing file with the same name and creates a
@@ -73,7 +75,7 @@ namespace cowbpt {
         // the cowbpt implementation) must be prepared to deal with
         // an Env that does not support appending.
         virtual Status NewAppendableFile(const std::string& fname,
-                                        WritableFilePtr& result);
+                                        WritableFilePtr& result) = 0;
 
         // Returns true iff the named file exists.
         virtual bool FileExists(const std::string& fname) = 0;
@@ -89,7 +91,7 @@ namespace cowbpt {
         // implementations. Updated Env implementations must override RemoveFile and
         // ignore the existence of DeleteFile. Updated code calling into the Env API
         // must call RemoveFile instead of DeleteFile.
-        virtual Status RemoveFile(const std::string& fname);
+        virtual Status RemoveFile(const std::string& fname) = 0;
 
         // Create the specified directory.
         virtual Status CreateDir(const std::string& dirname) = 0;
@@ -100,7 +102,7 @@ namespace cowbpt {
         // implementations. Updated Env implementations must override RemoveDir and
         // ignore the existence of DeleteDir. Modern code calling into the Env API
         // must call RemoveDir instead of DeleteDir.
-        virtual Status RemoveDir(const std::string& dirname);
+        virtual Status RemoveDir(const std::string& dirname) = 0;
 
         // Store the size of fname in *file_size.
         virtual Status GetFileSize(const std::string& fname, uint64_t* file_size) = 0;
@@ -142,11 +144,11 @@ namespace cowbpt {
         // // When "function(arg)" returns, the thread will be destroyed.
         // virtual void StartThread(void (*function)(void* arg), void* arg) = 0;
 
-        // // *path is set to a temporary directory that can be used for testing. It may
-        // // or may not have just been created. The directory may or may not differ
-        // // between runs of the same process, but subsequent calls will return the
-        // // same directory.
-        // virtual Status GetTestDirectory(std::string* path) = 0;
+        // *path is set to a temporary directory that can be used for testing. It may
+        // or may not have just been created. The directory may or may not differ
+        // between runs of the same process, but subsequent calls will return the
+        // same directory.
+        virtual Status GetTestDirectory(std::string* path) = 0;
 
         // // Create and return a log file for storing informational messages.
         // virtual Status NewLogger(const std::string& fname, Logger** result) = 0;
@@ -206,6 +208,30 @@ namespace cowbpt {
         virtual Status Flush() = 0;
         virtual Status Sync() = 0;
     };
+
+    class RandomAccessFile {
+    public:
+        RandomAccessFile() = default;
+
+        RandomAccessFile(const RandomAccessFile&) = delete;
+        RandomAccessFile& operator=(const RandomAccessFile&) = delete;
+
+        virtual ~RandomAccessFile() = default;
+
+        // Read up to "n" bytes from the file starting at "offset".
+        // "scratch[0..n-1]" may be written by this routine.  Sets "*result"
+        // to the data that was read (including if fewer than "n" bytes were
+        // successfully read).  May set "*result" to point at data in
+        // "scratch[0..n-1]", so "scratch[0..n-1]" must be live when
+        // "*result" is used.  If an error was encountered, returns a non-OK
+        // status.
+        //
+        // Safe for concurrent use by multiple threads.
+        virtual Status Read(uint64_t offset, size_t n, Slice& result) const = 0;
+    };
+
+
+    Status ReadFileToString(Env* env, const std::string& fname, std::string* data);
 
 }
 

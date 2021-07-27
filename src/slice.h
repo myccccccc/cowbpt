@@ -37,6 +37,7 @@ namespace cowbpt {
             return _s->size();
         }
         
+        //TODO: this api should be deleted and replced with stringPtr() instead
         const char* c_string() const {
             auto s = new std::string(*_s);
             return s->c_str(); // TODO: mem leak here

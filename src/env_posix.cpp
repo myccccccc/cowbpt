@@ -207,9 +207,73 @@ namespace cowbpt {
     const std::string filename_;
     };
 
+    // Implements random read access in a file using pread().
+    //
+    // Instances of this class are thread-safe, as required by the RandomAccessFile
+    // API. Instances are immutable and Read() only calls thread-safe library
+    // functions.
+    class PosixRandomAccessFile final : public RandomAccessFile {
+    public:
+        // The new instance takes ownership of |fd|. 
+        PosixRandomAccessFile(std::string filename, int fd)
+            : has_permanent_fd_(true),
+                fd_(has_permanent_fd_ ? fd : -1),
+                filename_(std::move(filename)) {
+            if (!has_permanent_fd_) {
+            assert(fd_ == -1);
+            ::close(fd);  // The file will be opened on every read.
+            }
+        }
+
+        ~PosixRandomAccessFile() override {
+            if (has_permanent_fd_) {
+            assert(fd_ != -1);
+            ::close(fd_);
+            }
+        }
+
+        Status Read(uint64_t offset, size_t n, Slice& result) const override {
+            int fd = fd_;
+            if (!has_permanent_fd_) {
+            fd = ::open(filename_.c_str(), O_RDONLY | kOpenBaseFlags);
+            if (fd < 0) {
+                return PosixError(filename_, errno);
+            }
+            }
+
+            assert(fd != -1);
+
+            // TODO: avoid new ervery time we call read
+            char* scratch = new char[n + 1]();
+
+            Status status;
+            ssize_t read_size = ::pread(fd, scratch, n, static_cast<off_t>(offset));
+            result = Slice(scratch, (read_size < 0) ? 0 : read_size);
+            if (read_size < 0) {
+            // An error: return a non-ok status.
+            status = PosixError(filename_, errno);
+            }
+            if (!has_permanent_fd_) {
+            // Close the temporary file descriptor opened earlier.
+            assert(fd != fd_);
+            ::close(fd);
+            }
+
+            delete [] scratch;
+
+            return status;
+        }
+
+    private:
+        const bool has_permanent_fd_;  // If false, the file is opened on every read.
+        const int fd_;                 // -1 if has_permanent_fd_ is false.
+        const std::string filename_;
+    };
+
+
     class PosixEnv : public Env {
     public:
-    PosixEnv();
+    PosixEnv() = default;
     ~PosixEnv() override {
         static const char msg[] =
             "PosixEnv singleton destroyed. Unsupported behavior!\n";
@@ -229,38 +293,16 @@ namespace cowbpt {
         return Status::OK();
     }
 
-    // Status NewRandomAccessFile(const std::string& filename,
-    //                             RandomAccessFile** result) override {
-    //     *result = nullptr;
-    //     int fd = ::open(filename.c_str(), O_RDONLY | kOpenBaseFlags);
-    //     if (fd < 0) {
-    //     return PosixError(filename, errno);
-    //     }
+    Status NewRandomAccessFile(const std::string& filename,
+                                RandomAccessFilePtr result) override {
+        int fd = ::open(filename.c_str(), O_RDONLY | kOpenBaseFlags);
+        if (fd < 0) {
+        return PosixError(filename, errno);
+        }
 
-    //     if (!mmap_limiter_.Acquire()) {
-    //     *result = new PosixRandomAccessFile(filename, fd, &fd_limiter_);
-    //     return Status::OK();
-    //     }
-
-    //     uint64_t file_size;
-    //     Status status = GetFileSize(filename, &file_size);
-    //     if (status.ok()) {
-    //     void* mmap_base =
-    //         ::mmap(/*addr=*/nullptr, file_size, PROT_READ, MAP_SHARED, fd, 0);
-    //     if (mmap_base != MAP_FAILED) {
-    //         *result = new PosixMmapReadableFile(filename,
-    //                                             reinterpret_cast<char*>(mmap_base),
-    //                                             file_size, &mmap_limiter_);
-    //     } else {
-    //         status = PosixError(filename, errno);
-    //     }
-    //     }
-    //     ::close(fd);
-    //     if (!status.ok()) {
-    //     mmap_limiter_.Release();
-    //     }
-    //     return status;
-    // }
+        result.reset(new PosixRandomAccessFile(filename, fd));
+        return Status::OK();
+    }
 
     Status NewWritableFile(const std::string& filename,
                             WritableFilePtr& result) override {
@@ -389,22 +431,22 @@ namespace cowbpt {
     //     new_thread.detach();
     // }
 
-    // Status GetTestDirectory(std::string* result) override {
-    //     const char* env = std::getenv("TEST_TMPDIR");
-    //     if (env && env[0] != '\0') {
-    //     *result = env;
-    //     } else {
-    //     char buf[100];
-    //     std::snprintf(buf, sizeof(buf), "/tmp/cowbpttest-%d",
-    //                     static_cast<int>(::geteuid()));
-    //     *result = buf;
-    //     }
+    Status GetTestDirectory(std::string* result) override {
+        const char* env = std::getenv("TEST_TMPDIR");
+        if (env && env[0] != '\0') {
+        *result = env;
+        } else {
+        char buf[100];
+        std::snprintf(buf, sizeof(buf), "/tmp/cowbpttest-%d",
+                        static_cast<int>(::geteuid()));
+        *result = buf;
+        }
 
-    //     // The CreateDir status is ignored because the directory may already exist.
-    //     CreateDir(*result);
+        // The CreateDir status is ignored because the directory may already exist.
+        CreateDir(*result);
 
-    //     return Status::OK();
-    // }
+        return Status::OK();
+    }
 
     // Status NewLogger(const std::string& filename, Logger** result) override {
     //     int fd = ::open(filename.c_str(),
@@ -528,5 +570,27 @@ namespace cowbpt {
     Env* Env::Default() {
     static PosixDefaultEnv env_container;
     return env_container.env();
+    }
+
+    Status ReadFileToString(Env* env, const std::string& fname, std::string* data) {
+        data->clear();
+        SequentialFilePtr file;
+        Status s = env->NewSequentialFile(fname, file);
+        if (!s.ok()) {
+            return s;
+        }
+        static const int kBufferSize = 8192;
+        while (true) {
+            Slice fragment;
+            s = file->Read(kBufferSize, fragment);
+            if (!s.ok()) {
+            break;
+            }
+            data->append(fragment.c_string(), fragment.size());
+            if (fragment.empty()) {
+            break;
+            }
+        }
+        return s;
     }
 }

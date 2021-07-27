@@ -32,7 +32,7 @@ if(COWBPT_BUILD_TESTS)
         include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
         file(GLOB TEST_SRC_FILES ${PROJECT_SOURCE_DIR}/test/*.cpp)
         add_executable(runUnitTests ${TEST_SRC_FILES})
-        target_link_libraries(runUnitTests gtest gtest_main)
+        target_link_libraries(runUnitTests gtest gtest_main gmock)
         target_link_libraries(runUnitTests cowbpt_library)
         add_test(UnitTests runUnitTests)
 
