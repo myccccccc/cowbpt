@@ -1,9 +1,10 @@
 cmake_minimum_required(VERSION 3.5)
 
 project(cowbpt)
-
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_FLAGS "-g -Wall")
+    
+set(CMAKE_CXX_FLAGS   "-std=c++11 -g -Wall")             
+set(CMAKE_CXX_FLAGS_DEBUG   "-O0" )             
+set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG " )   
 
 option(COWBPT_BUILD_TESTS "Build cowbpt's unit tests" ON)
 
@@ -20,6 +21,11 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/gflags)
 target_link_libraries(cowbpt_library
     PUBLIC 
          gflags::gflags)
+
+add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/glog)
+target_link_libraries(cowbpt_library
+    PUBLIC 
+         glog::glog)
 
 if(COWBPT_BUILD_TESTS)
         enable_testing()
