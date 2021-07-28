@@ -8,6 +8,8 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG " )
 
 option(COWBPT_BUILD_TESTS "Build cowbpt's unit tests" ON)
 
+set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/" "${CMAKE_MODULE_PATH}")
+
 file(GLOB COWBPT_SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp)
 add_library(cowbpt_library STATIC 
         ${COWBPT_SRC_FILES}
