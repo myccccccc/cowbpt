@@ -52,6 +52,11 @@ namespace cowbpt {
             _s.reset(new std::string());
         }
         
+        char operator[](size_t n) const {
+            assert(n < size());
+            return _s->c_str()[n];
+        }
+        
     private:
         std::shared_ptr<const std::string> _s;
     };
