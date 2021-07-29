@@ -105,7 +105,8 @@ bool GetVarint32(Slice* input, uint32_t* value) {
   if (q == nullptr) {
     return false;
   } else {
-    *input = Slice(q, limit - q);
+    // *input = Slice(q, limit - q);
+    input->remove_prefix(q - p);
     return true;
   }
 }
@@ -134,7 +135,8 @@ bool GetVarint64(Slice* input, uint64_t* value) {
   if (q == nullptr) {
     return false;
   } else {
-    *input = Slice(q, limit - q);
+    // *input = Slice(q, limit - q);
+    input->remove_prefix(q - p);
     return true;
   }
 }
@@ -152,7 +154,8 @@ const char* GetLengthPrefixedSlice(const char* p, const char* limit,
 bool GetLengthPrefixedSlice(Slice* input, Slice* result) {
   uint32_t len;
   if (GetVarint32(input, &len) && input->size() >= len) {
-    *result = Slice(input->c_string(), len);
+    // *result = Slice(input->c_string(), len);
+    *result = Slice(*input, len);
     input->remove_prefix(len);
     return true;
   } else {
