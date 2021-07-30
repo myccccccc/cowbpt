@@ -21,13 +21,25 @@ target_include_directories(cowbpt_library
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/gflags)
 target_link_libraries(cowbpt_library
-    PUBLIC 
          gflags::gflags)
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/glog)
 target_link_libraries(cowbpt_library
-    PUBLIC 
          glog::glog)
+
+set(CMAKE_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/third_party/rocksdb/include" "${CMAKE_INCLUDE_PATH}")
+set(CMAKE_LIBRARY_PATH "${PROJECT_SOURCE_DIR}/third_party/rocksdb" "${CMAKE_LIBRARY_PATH}")
+find_path(ROCKSDB_INCLUDE_PATH NAMES rocksdb/db.h)
+find_library(ROCKSDB_LIB NAMES rocksdb)
+if (NOT ROCKSDB_LIB)
+        message(FATAL_ERROR "Fail to find rocksdb lib, \"make static_lib\" to build rocksdb")
+endif()
+target_include_directories(cowbpt_library
+     PRIVATE
+        ${ROCKSDB_INCLUDE_PATH}
+)
+target_link_libraries(cowbpt_library
+        ${ROCKSDB_LIB})
 
 if(COWBPT_BUILD_TESTS)
         enable_testing()
