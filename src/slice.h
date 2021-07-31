@@ -1,6 +1,7 @@
 #include <string>
 #include <memory>
 #include <cassert>
+#include <cstring>
 
 
 #ifndef SLICE_H
@@ -61,11 +62,23 @@ namespace cowbpt {
             return _s->c_str()[n + _pos];
         }
         
+        // Return true iff "x" is a prefix of "*this"
+        bool starts_with(const Slice& x) const {
+            return ((size() >= x.size()) && (memcmp(c_string(), x.c_string(), x.size()) == 0));
+        }
+        
     private:
         std::shared_ptr<const std::string> _s;
         size_t _pos;
         size_t _len;
     };
+
+    inline bool operator==(const Slice& x, const Slice& y) {
+        return ((x.size() == y.size()) &&
+                (memcmp(x.c_string(), y.c_string(), x.size()) == 0));
+    }
+
+    inline bool operator!=(const Slice& x, const Slice& y) { return !(x == y); }
 
 }
 
