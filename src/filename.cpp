@@ -9,10 +9,6 @@
 
 namespace cowbpt {
 
-// A utility routine: write "data" to the named file and Sync() it.
-Status WriteStringToFileSync(Env* env, const Slice& data,
-                             const std::string& fname);
-
 // Parse a human-readable number from "*in" into *value.  On success,
 // advances "*in" past the consumed number and sets "*val" to the
 // numeric value.  Otherwise, returns false and leaves *in in an
@@ -94,24 +90,6 @@ bool ParseFileName(const std::string& filename, uint64_t* number,
   return true;
 }
 
-Status SetCurrentFile(Env* env, const std::string& dbname,
-                      uint64_t descriptor_number) {
-  // Remove leading "dbname/" and add newline to manifest file name
-  std::string manifest = DescriptorFileName(dbname, descriptor_number);
-  Slice contents = manifest;
-  assert(contents.starts_with(dbname + "/"));
-  contents.remove_prefix(dbname.size() + 1);
-  std::string tmp = TempFileName(dbname, descriptor_number);
-  Status s = WriteStringToFileSync(env, contents.string() + "\n", tmp);
-  if (s.ok()) {
-    s = env->RenameFile(tmp, CurrentFileName(dbname));
-  }
-  if (!s.ok()) {
-    env->RemoveFile(tmp);
-  }
-  return s;
-}
-
 bool ConsumeDecimalNumber(Slice* in, uint64_t* val) {
   // Constants that will be optimized away.
   constexpr const uint64_t kMaxUint64 = std::numeric_limits<uint64_t>::max();
@@ -145,5 +123,7 @@ bool ConsumeDecimalNumber(Slice* in, uint64_t* val) {
   return digits_consumed != 0;
 }
 
+std::string LogFileNumberKey() { return "LOGFILENUMBER"; }
 
+std::string LastSeqInLastLogFileKey() { return "LastSeqInLastLogFile"; }
 } 

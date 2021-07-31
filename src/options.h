@@ -28,7 +28,7 @@ struct Options {
   Comparator* comparator;
 
   // If true, the database will be created if it is missing.
-  bool create_if_missing = false;
+  bool create_if_missing = true;
 
   // If true, an error is raised if the database already exists.
   bool error_if_exists = false;

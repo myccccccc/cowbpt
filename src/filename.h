@@ -48,16 +48,11 @@ std::string TempFileName(const std::string& dbname, uint64_t number);
 bool ParseFileName(const std::string& filename, uint64_t* number,
                    FileType* type);
 
-// Make the CURRENT file point to the descriptor file with the
-// specified number.
-Status SetCurrentFile(Env* env, const std::string& dbname,
-                      uint64_t descriptor_number);
-
 // log_number key that stores in rocksdb
-std::string LogFileNumberKey() { return "LOGFILENUMBER"; }
+std::string LogFileNumberKey();
 
 // LastSeqInLastLogFile key that stores in rocksdb
-std::string LastSeqInLastLogFileKey() { return "LastSeqInLastLogFile"; }
+std::string LastSeqInLastLogFileKey();
 }  
 
 #endif

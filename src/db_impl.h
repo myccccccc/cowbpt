@@ -60,6 +60,7 @@ namespace cowbpt {
 
         uint64_t _last_seq_id;
         uint64_t _logfile_number;
+        uint64_t _last_obsolete_logfile_number;
 
         WritableFilePtr _logfile;
         log::Writer* _log; 

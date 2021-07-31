@@ -36,6 +36,17 @@ TEST(WriteBatchTest, Multiple) {
   ASSERT_EQ(b->get("foo").string(), "bar");
   ASSERT_EQ(b->get("box").string(), "");
   ASSERT_EQ(b->get("baz").string(), "boo");
+
+  batch.Clear();
+  batch.Delete(Slice("foo"));
+  batch.Delete(Slice("baz"));
+  WriteBatchInternal::SetSequence(&batch, 200);
+  ASSERT_EQ(200, WriteBatchInternal::Sequence(&batch));
+  ASSERT_EQ(2, WriteBatchInternal::Count(&batch));
+  ASSERT_COWBPT_OK(WriteBatchInternal::InsertInto(&batch, b));
+  ASSERT_EQ(b->get("foo").string(), "");
+  ASSERT_EQ(b->get("box").string(), "");
+  ASSERT_EQ(b->get("baz").string(), "");
 }
 
 TEST(WriteBatchTest, Append) {

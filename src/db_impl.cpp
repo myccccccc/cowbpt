@@ -7,15 +7,30 @@
 #include "coding.h"
 #include "log_reader.h"
 
+#include <iostream>
+
 namespace cowbpt {
     Status DB::Open(const Options& options, const std::string& dbname, DB** dbptr) {
         *dbptr = nullptr;
         DBImpl* impl = new DBImpl(options, dbname);
-        std::lock_guard<std::mutex> lck(impl->_mutex);
+
+        impl->_mutex.lock();
+
         Status s = impl->Recover();
         if (s.ok()) {
             impl->RemoveObsoleteFiles();
         }
+
+        impl->_logfile_number++;
+        s = impl->_env->NewWritableFile(LogFileName(impl->_dbname, impl->_logfile_number), impl->_logfile);
+        if (s.ok()) {
+            impl->_log = new log::Writer(impl->_logfile);
+        } else {
+            LOG(ERROR) << "Fail to open file " << LogFileName(impl->_dbname, impl->_logfile_number)  << " : " << s.string();
+        }
+
+        impl->_mutex.unlock();
+
         if (s.ok()) {
             *dbptr = impl;
         } else {
@@ -62,7 +77,7 @@ namespace cowbpt {
                 bool keep;
                 switch (type) {
                     case kLogFile:
-                        keep = (number >= _logfile_number);
+                        keep = (number > _last_obsolete_logfile_number);
                         break;
                     default:
                         assert(false);
@@ -113,7 +128,7 @@ namespace cowbpt {
         std::string value;
         rocks_status = _internalDB->Get(rocksdb::ReadOptions(), LogFileNumberKey(), &value);
         if (rocks_status.ok()) {
-            _logfile_number = DecodeFixed64(value.c_str());
+            _last_obsolete_logfile_number = DecodeFixed64(value.c_str());
         } else if (!rocks_status.IsNotFound()) {
             LOG(ERROR) << "Error when reading logfile_number from internal db: " << rocks_status.ToString();
             return Status::Corruption(rocks_status.ToString());
@@ -147,8 +162,12 @@ namespace cowbpt {
         for (size_t i = 0; i < filenames.size(); i++) {
             if (ParseFileName(filenames[i], &number, &type)) {
                 assert(type == kLogFile);
-                if (number >= _logfile_number)
+                if (number > _logfile_number) {
+                    _logfile_number = number;
+                }
+                if (number > _last_obsolete_logfile_number) {
                     logs.push_back(number);
+                }
             }
         }
         // Recover in the order in which the logs were generated
@@ -166,10 +185,10 @@ namespace cowbpt {
         struct LogReporter : public log::Reader::Reporter {
             Env* env;
             const std::string* fname;
-            Status* status;  // null if options_.paranoid_checks==false
+            Status* status;  
             void Corruption(size_t bytes, const Status& s) override {
-            LOG(INFO) << *fname << " log file dropped " << bytes << " when recovering: " << s.string();
-            if (this->status != nullptr && this->status->ok()) *this->status = s;
+                LOG(INFO) << *fname << " log file dropped " << bytes << " when recovering: " << s.string();
+                if (this->status != nullptr && this->status->ok()) *this->status = s;
             }
         };
         // Open the log file
@@ -223,6 +242,7 @@ namespace cowbpt {
       _bpt(nullptr),
       _last_seq_id(0),
       _logfile_number(0),
+      _last_obsolete_logfile_number(0),
       _logfile(nullptr),
       _log(nullptr),
       _internalDB(nullptr),
@@ -236,6 +256,12 @@ namespace cowbpt {
     }
       
     DBImpl::~DBImpl() {
+        if (_bpt) {
+            delete _bpt;
+        }
+        if (_log) {
+            delete _log;
+        }
         if (_internalDB) {
             delete _internalDB;
         }
@@ -252,6 +278,16 @@ namespace cowbpt {
         WriteBatch batch;
         batch.Delete(key);
         return Write(options, &batch);
+    }
+
+    Status DBImpl::Get(const ReadOptions& options, const Slice& key, std::string* value) {
+        Slice result = _bpt->get(key);
+        if (!result.empty()) {
+            *value = result.string();
+            return Status::OK();
+        } else {
+            return Status::NotFound("Can't found "+key.string());
+        }
     }
 
     // Information kept for every waiting writer
