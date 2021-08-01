@@ -3,13 +3,15 @@ language: cpp
 sudo: required
 
 compiler:
-- g++
+- gcc
 
 env:
 - PURPOSE=compile
 - PURPOSE=unittest
 
 before_install:
+- sudo apt-get update -y
+- sudo apt-get install -y libc6-dev
 
 install:
 
