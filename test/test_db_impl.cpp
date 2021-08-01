@@ -1,5 +1,8 @@
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
+#include <unordered_set>
+#include <mutex>
+#include <thread>
 
 #define private public
 #define protected public
@@ -39,18 +42,23 @@ MATCHER(IsOK, "") { return arg.ok(); }
 #define ASSERT_COWBPT_OK(expression) \
   ASSERT_THAT(expression, cowbpt::IsOK())
 
+namespace {
+    std::string testdb_name;
+}
 TEST(DBImplTest, DBImplOpenAndDestory) {
+  testdb_name = "DBImplOpenAndDestory";
   DB* db;
-  Status s = DB::Open(Options(), "testDB", &db);
+  Status s = DB::Open(Options(), testdb_name, &db);
   ASSERT_COWBPT_OK(s);
   delete db;
-  DestroyDB("testDB", Options());
+  DestroyDB(testdb_name, Options());
 }
 
 TEST(DBImplTest, DBImplCRUD) {
-  DestroyDB("testDB", Options());
+  testdb_name = "DBImplCRUD";
+  DestroyDB(testdb_name, Options());
   DB* db;
-  Status s = DB::Open(Options(), "testDB", &db);
+  Status s = DB::Open(Options(), testdb_name, &db);
   ASSERT_COWBPT_OK(s);
 
   WriteOptions wo;
@@ -105,7 +113,7 @@ TEST(DBImplTest, DBImplCRUD) {
 
   delete db;
 
-  s = DB::Open(Options(), "testDB", &db);
+  s = DB::Open(Options(), testdb_name, &db);
   ASSERT_COWBPT_OK(s);
   value.clear();
   ASSERT_COWBPT_OK(db->Get(ReadOptions(), "1", &value));
@@ -167,7 +175,7 @@ TEST(DBImplTest, DBImplCRUD) {
 
   delete db;
 
-  s = DB::Open(Options(), "testDB", &db);
+  s = DB::Open(Options(), testdb_name, &db);
   ASSERT_COWBPT_OK(s);
   ASSERT_TRUE(db->Get(ReadOptions(), "1", &value).IsNotFound());
   ASSERT_TRUE(db->Get(ReadOptions(), "2", &value).IsNotFound());
@@ -180,6 +188,285 @@ TEST(DBImplTest, DBImplCRUD) {
   ASSERT_TRUE(db->Get(ReadOptions(), "9", &value).IsNotFound());
   ASSERT_TRUE(db->Get(ReadOptions(), "10", &value).IsNotFound());
   ASSERT_TRUE(db->Get(ReadOptions(), "11", &value).IsNotFound());
+
+}
+
+namespace {
+  std::string gen_random(const int len) {
+    
+    std::string tmp_s;
+    static const char alphanum[] =
+        "0123456789"
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        "abcdefghijklmnopqrstuvwxyz";
+    
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+
+    /* using nano-seconds instead of seconds */
+    srand((time_t)ts.tv_nsec);
+
+    tmp_s.reserve(len);
+
+    for (int i = 0; i < len; ++i) 
+        tmp_s += alphanum[rand() % (sizeof(alphanum) - 1)];
+    
+    
+    return tmp_s;
+    
+  }
+
+  int rand_int() {
+      struct timespec ts;
+      clock_gettime(CLOCK_MONOTONIC, &ts);
+
+      /* using nano-seconds instead of seconds */
+      srand((time_t)ts.tv_nsec);
+
+      return rand();
+  }
+}
+
+TEST(DBImplTest, DBImplRandomCRUD) {
+    testdb_name = "DBImplRandomCRUD";
+  std::unordered_set<std::string> st;
+  while (st.size() < 100000) {
+      std::string s = gen_random(15);
+      if (st.count(s) == 0) {
+          st.insert(s);
+      }
+  }
+
+
+  DestroyDB(testdb_name, Options());
+  DB* db;
+  ASSERT_COWBPT_OK(DB::Open(Options(), testdb_name, &db));
+
+  WriteOptions wo;
+  wo.sync = false;
+  for (std::string s : st) {
+      ASSERT_COWBPT_OK(db->Put(wo, s, s));
+  }
+
+  delete db;
+  ASSERT_COWBPT_OK(DB::Open(Options(), testdb_name, &db));
+  std::string value;
+  for(std::string s: st) {
+      value.clear();
+      ASSERT_COWBPT_OK(db->Get(ReadOptions(), s, &value));
+      EXPECT_EQ(value, s);
+  }
+  EXPECT_TRUE(db->Get(ReadOptions(), "123", &value).IsNotFound());
+  for (std::string s : st) {
+      ASSERT_COWBPT_OK(db->Put(wo, s, "cnm"));
+  }
+
+  delete db;
+  ASSERT_COWBPT_OK(DB::Open(Options(), testdb_name, &db));
+  for(std::string s: st) {
+      value.clear();
+      ASSERT_COWBPT_OK(db->Get(ReadOptions(), s, &value));
+      EXPECT_EQ(value, "cnm");
+  }
+  EXPECT_TRUE(db->Get(ReadOptions(), "123", &value).IsNotFound());
+  for (std::string s : st) {
+      ASSERT_COWBPT_OK(db->Delete(wo, s));
+  }
+
+  delete db;
+  ASSERT_COWBPT_OK(DB::Open(Options(), testdb_name, &db));
+  for(std::string s: st) {
+      value.clear();
+      ASSERT_TRUE(db->Get(ReadOptions(), s, &value).IsNotFound());
+  }
+}
+
+namespace {
+  void write_thread(DB* db, std::vector<std::string>* v1, std::vector<std::string>* v2, std::mutex* m) {
+      WriteOptions wo;
+      wo.sync = false;
+      for(auto s : *v1) {
+          ASSERT_COWBPT_OK(db->Put(wo, s, s));
+          m->lock();
+          v2->push_back(s);
+          m->unlock();
+      }
+  }
+
+  void del_thread(DB* db, std::vector<std::string>* v1, std::vector<std::string>* v2, std::mutex* m) {
+      WriteOptions wo;
+      wo.sync = false;
+      for(auto s : *v1) {
+          ASSERT_COWBPT_OK(db->Delete(wo, s));
+          m->lock();
+          v2->push_back(s);
+          m->unlock();
+      }
+  }
+
+  void read_thread(DB* db, std::vector<std::string>* v2, std::mutex* m) {
+      while (true) {
+          m->lock();
+          if (v2->empty()) {
+              m->unlock();
+              continue;
+          }
+          int size = v2->size();
+          std::string s = (*v2)[rand_int() % size];
+          m->unlock();
+          std::string value;
+          ASSERT_COWBPT_OK(db->Get(ReadOptions(), s, &value));
+          ASSERT_EQ(value, s);
+          if (size == 100000) {
+              break;
+          }
+      }
+      
+  }
+
+  void read_del_thread(DB* db, std::vector<std::string>* v2, std::mutex* m) {
+      while (true) {
+          m->lock();
+          if (v2->empty()) {
+              m->unlock();
+              continue;
+          }
+          int size = v2->size();
+          std::string s = (*v2)[rand_int() % size];
+          m->unlock();
+          std::string value;
+          ASSERT_TRUE(db->Get(ReadOptions(), s, &value).IsNotFound());
+          if (size == 100000) {
+              break;
+          }
+      }
+  }
+}
+
+TEST(DBImplTest, DBImplRandomCurrentCRUD) {
+    testdb_name = "DBImplRandomCurrentCRUD";
+  DestroyDB(testdb_name, Options());
+  DB* db;
+  ASSERT_COWBPT_OK(DB::Open(Options(), testdb_name, &db));
+
+  std::unordered_set<std::string> st;
+  while (st.size() < 100000) {
+      std::string s = gen_random(15);
+      if (st.count(s) == 0) {
+          st.insert(s);
+      }
+  }
+
+  std::unordered_set<std::string> del_st;
+  while (del_st.size() < 100000) {
+      std::string s = gen_random(15);
+      if (st.count(s) == 0 && del_st.count(s) == 0) {
+          del_st.insert(s);
+      }
+  }
+
+  std::vector<std::vector<std::string>> sts; // 100 write thread
+  int i = 0;
+  for (auto s : st) {
+      if (i % 1000 == 0) {
+          sts.push_back(std::vector<std::string>());
+      }
+      sts.back().push_back(s);
+      i++;
+  }
+
+  std::vector<std::vector<std::string>> del_sts; // 100 del thread
+  i = 0;
+  for (auto s : del_st) {
+      if (i % 1000 == 0) {
+          del_sts.push_back(std::vector<std::string>());
+      }
+      del_sts.back().push_back(s);
+      i++;
+  }
+
+  std::vector<std::string> st_writen;
+  std::mutex st_written_mutex;
+
+  std::vector<std::string> st_delten;
+  std::mutex st_delten_mutex;
+
+  WriteOptions wo;
+  wo.sync = false;
+  for(auto s : del_st) {
+      ASSERT_COWBPT_OK(db->Put(wo, s, s));
+  }
+
+  for(std::string s: del_st) {
+      std::string value;
+      value.clear();
+      ASSERT_COWBPT_OK(db->Get(ReadOptions(), s, &value));
+      ASSERT_EQ(value, s);
+  }
+
+  std::vector<std::thread> del_threads;
+  assert(del_sts.size() == 100);
+  for (size_t i = 0; i < del_sts.size(); i++) {
+      del_threads.push_back(std::thread(del_thread, db, &del_sts[i], &st_delten, &st_delten_mutex));
+  }
+
+  std::vector<std::thread> read_del_threads;
+  for(auto i = 0; i < 100; i++) {
+      read_del_threads.push_back(std::thread(read_del_thread, db, &st_delten, &st_delten_mutex));
+  }
+
+  std::vector<std::thread> write_threads;
+  assert(sts.size() == 100);
+  for (size_t i = 0; i < sts.size(); i++) {
+      write_threads.push_back(std::thread(write_thread, db, &sts[i], &st_writen, &st_written_mutex));
+  }
+
+  std::vector<std::thread> read_threads;
+  for(auto i = 0; i < 100; i++) {
+      read_threads.push_back(std::thread(read_thread, db, &st_writen, &st_written_mutex));
+  }
+  
+  // TODO: current update thread
+
+  for(size_t i  = 0; i < del_threads.size(); i++) {
+      del_threads[i].join();
+  }
+
+  for(size_t i  = 0; i < read_del_threads.size(); i++) {
+      read_del_threads[i].join();
+  }
+
+  for(size_t i  = 0; i < write_threads.size(); i++) {
+      write_threads[i].join();
+  }
+
+  for(size_t i  = 0; i < read_threads.size(); i++) {
+      read_threads[i].join();
+  }
+
+
+  std::string value;
+  for(std::string s: st) {
+      value.clear();
+      ASSERT_COWBPT_OK(db->Get(ReadOptions(), s, &value));
+      ASSERT_EQ(value, s);
+  }
+  for(std::string s: del_st) {
+      value.clear();
+      ASSERT_TRUE(db->Get(ReadOptions(), s, &value).IsNotFound());
+  }
+  
+  delete db;
+  ASSERT_COWBPT_OK(DB::Open(Options(), testdb_name, &db));
+  for(std::string s: st) {
+      value.clear();
+      ASSERT_COWBPT_OK(db->Get(ReadOptions(), s, &value));
+      ASSERT_EQ(value, s);
+  }
+  for(std::string s: del_st) {
+      value.clear();
+      ASSERT_TRUE(db->Get(ReadOptions(), s, &value).IsNotFound());
+  }
 
 }
 
