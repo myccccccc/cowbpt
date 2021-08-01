@@ -187,7 +187,7 @@ namespace cowbpt {
             status = PosixError(filename_, errno);
             break;
         }
-        result = Slice(scratch);
+        result = Slice(scratch, read_size);
         break;
         }
 

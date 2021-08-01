@@ -1,6 +1,7 @@
 #include <string>
 #include <memory>
 #include <cassert>
+#include <cstring>
 
 
 #ifndef SLICE_H
@@ -16,45 +17,68 @@ namespace cowbpt {
         Slice& operator = (const Slice& s) = default;
         Slice& operator = (Slice&& s) = default;
 
-        Slice(const char* c_string) : _s(std::make_shared<const std::string>(c_string)) {};
-        Slice(const char* c_string, size_t n) : _s(std::make_shared<const std::string>(c_string, n)) {};
+        Slice(const char* c_string) : _s(std::make_shared<const std::string>(c_string)), _pos(0), _len(_s->size()) {};
+        Slice(const char* c_string, size_t n) : _s(std::make_shared<const std::string>(c_string, n)), _pos(0), _len(_s->size()) {};
 
-        Slice(std::string&& s): _s(std::make_shared<const std::string>(std::move(s))) {};
-        Slice(const std::string& s): _s(std::make_shared<const std::string>(s)) {};
+        Slice(std::string&& s): _s(std::make_shared<const std::string>(std::move(s))), _pos(0), _len(_s->size()) {};
+        Slice(const std::string& s): _s(std::make_shared<const std::string>(s)), _pos(0), _len(_s->size()) {};
 
-        Slice() : _s(std::make_shared<const std::string>()) {}; // empty slice
+        Slice() : _s(std::make_shared<const std::string>()), _pos(0), _len(_s->size()) {}; // empty slice
 
-        bool empty() const { return _s->empty(); }
+        Slice(const Slice& s, size_t len) : _s(s._s), _pos(s._pos), _len(len) { assert(len <= s.size()); }
+
+        bool empty() const { 
+            return _len == 0; 
+        }
 
         const std::string string() const {
-            return *_s;
-        }
-        std::shared_ptr<const std::string> stringPtr() const {
-            return _s; 
+            return std::string(_s->begin()+_pos, _s->begin()+_pos+_len);
         }
 
         size_t size() const {
-            return _s->size();
+            return _len;
         }
         
-        //TODO: this api should be deleted and replced with stringPtr() instead
+        // dangerous api, the Slice instance calling this function, must out lives the returnd char* value
+        // use this api very calfully
         const char* c_string() const {
-            auto s = new std::string(*_s);
-            return s->c_str(); // TODO: mem leak here
+            return _s->c_str() + _pos; 
         }
 
         void remove_prefix(size_t n) {
-            assert(n <= size());
-            _s.reset(new std::string(_s->begin()+n, _s->end()));
+            assert(n <= _len);
+            _pos += n;
+            _len -= n;
         }
         
         void clear() {
             _s.reset(new std::string());
+            _pos = 0;
+            _len = 0;
+        }
+        
+        char operator[](size_t n) const {
+            assert(n < _len);
+            return _s->c_str()[n + _pos];
+        }
+        
+        // Return true iff "x" is a prefix of "*this"
+        bool starts_with(const Slice& x) const {
+            return ((size() >= x.size()) && (memcmp(c_string(), x.c_string(), x.size()) == 0));
         }
         
     private:
         std::shared_ptr<const std::string> _s;
+        size_t _pos;
+        size_t _len;
     };
+
+    inline bool operator==(const Slice& x, const Slice& y) {
+        return ((x.size() == y.size()) &&
+                (memcmp(x.c_string(), y.c_string(), x.size()) == 0));
+    }
+
+    inline bool operator!=(const Slice& x, const Slice& y) { return !(x == y); }
 
 }
 

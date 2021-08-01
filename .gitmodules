@@ -7,3 +7,6 @@
 [submodule "third_party/glog"]
 	path = third_party/glog
 	url = https://github.com/google/glog.git
+[submodule "third_party/rocksdb"]
+	path = third_party/rocksdb
+	url = https://github.com/facebook/rocksdb.git

@@ -21,7 +21,7 @@ runcmd(){
 
 echo "build combination: PURPOSE=$PURPOSE CXX=$CXX CC=$CC"
 
-rm -rf build && mkdir build && cd build
+cd third_party/rocksdb && make static_lib -j4 && cd ../../ && rm -rf build && mkdir build && cd build
 if [ "$PURPOSE" = "compile" ]; then
     if ! cmake .. -DCOWBPT_BUILD_TESTS=OFF; then
         echo "Fail to generate Makefile by cmake"

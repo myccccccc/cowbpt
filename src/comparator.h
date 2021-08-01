@@ -13,7 +13,7 @@ namespace cowbpt {
     class SliceComparator : public Comparator {
     public:
         bool operator() (const Slice& x, const Slice& y) const override {
-            return _cmp(*(x.stringPtr()), *(y.stringPtr()));
+            return _cmp(x.string(), y.string());
         }
     private:
         std::less<std::string> _cmp;
