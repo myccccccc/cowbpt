@@ -19,9 +19,17 @@ target_include_directories(cowbpt_library
         ${PROJECT_SOURCE_DIR}/src
 )
 
-find_package(gflags REQUIRED)
+find_path(GFLAGS_INCLUDE_PATH NAMES gflags/gflags.h)
+find_library(GFLAGS_LIB NAMES gflags)
+if (NOT GFLAGS_LIB OR NOT GFLAGS_INCLUDE_PATH)
+        message(FATAL_ERROR "Fail to find gflags ")
+endif()
+target_include_directories(cowbpt_library
+     PRIVATE
+        ${GFLAGS_INCLUDE_PATH}
+)
 target_link_libraries(cowbpt_library
-         gflags)
+        ${GFLAGS_LIB})
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/glog)
 target_link_libraries(cowbpt_library
