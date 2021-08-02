@@ -8,6 +8,7 @@
 #include "log_reader.h"
 
 #include <iostream>
+#include <condition_variable>
 
 namespace cowbpt {
     Status DB::Open(const Options& options, const std::string& dbname, DB** dbptr) {
