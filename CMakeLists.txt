@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 
 project(cowbpt)
     
-set(CMAKE_CXX_FLAGS   "-std=c++11 -g -Wall -lpthread -lsnappy  -lz -lbz2 -lzstd -ldl -llz4")             
+set(CMAKE_CXX_FLAGS   "-std=c++11 -g -Wall")             
 set(CMAKE_CXX_FLAGS_DEBUG   "-O0" )             
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG " )   
 
@@ -19,20 +19,18 @@ target_include_directories(cowbpt_library
         ${PROJECT_SOURCE_DIR}/src
 )
 
-add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/gflags)
+find_package(gflags REQUIRED)
 target_link_libraries(cowbpt_library
-         gflags::gflags)
+         gflags)
 
-add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/glog)
+find_package(glog REQUIRED)
 target_link_libraries(cowbpt_library
          glog::glog)
 
-set(CMAKE_INCLUDE_PATH "${PROJECT_SOURCE_DIR}/third_party/rocksdb/include" "${CMAKE_INCLUDE_PATH}")
-set(CMAKE_LIBRARY_PATH "${PROJECT_SOURCE_DIR}/third_party/rocksdb" "${CMAKE_LIBRARY_PATH}")
 find_path(ROCKSDB_INCLUDE_PATH NAMES rocksdb/db.h)
 find_library(ROCKSDB_LIB NAMES rocksdb)
-if (NOT ROCKSDB_LIB)
-        message(FATAL_ERROR "Fail to find rocksdb lib, \"make static_lib\" to build rocksdb")
+if (NOT ROCKSDB_LIB OR NOT ROCKSDB_INCLUDE_PATH)
+        message(FATAL_ERROR "Fail to find rocksdb ")
 endif()
 target_include_directories(cowbpt_library
      PRIVATE
