@@ -8,7 +8,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG " )
 
 option(COWBPT_BUILD_TESTS "Build cowbpt's unit tests" ON)
 
-set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/" "${CMAKE_MODULE_PATH}")
+## set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/" "${CMAKE_MODULE_PATH}")
 
 file(GLOB COWBPT_SRC_FILES ${PROJECT_SOURCE_DIR}/src/*.cpp)
 add_library(cowbpt_library STATIC 
@@ -23,9 +23,9 @@ find_package(gflags REQUIRED)
 target_link_libraries(cowbpt_library
          gflags)
 
-find_package(glog REQUIRED)
+add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/glog)
 target_link_libraries(cowbpt_library
-         glog::glog)
+        glog::glog)
 
 find_path(ROCKSDB_INCLUDE_PATH NAMES rocksdb/db.h)
 find_library(ROCKSDB_LIB NAMES rocksdb)

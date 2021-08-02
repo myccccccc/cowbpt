@@ -13,7 +13,6 @@ before_install:
 
 install:
 - sudo apt-get install libgflags-dev
-- sudo apt-get install libglog-dev
 - sudo apt-get install librocksdb-dev
 
 before_script:
