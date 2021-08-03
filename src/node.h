@@ -350,7 +350,7 @@ public:
     }
 
     // if this is a leaf node, panic
-    virtual std::vector<NodePtr> get_child_nodes() {
+    virtual std::vector<NodePtr> get_child_nodes() override {
         return _kvmap->get_values();
     }
     virtual Status serialize(std::string& result) override {
@@ -605,7 +605,7 @@ private:
         right->increase_version();
     }
     // push this internalnodevalue to the front of is node, and the previous front key is set to right_k
-    virtual void push_front(InternalNodeValue v, Key right_k) {
+    virtual void push_front(InternalNodeValue v, Key right_k) override {
         cow();
         _kvmap->push_front(v, right_k);
         this->increase_version();

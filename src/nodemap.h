@@ -115,6 +115,7 @@ namespace cowbpt {
         }
     public:
         InternalNodeMap() = delete;
+        virtual ~InternalNodeMap() = default;
         InternalNodeMap(Comparator cmp, Value v1, 
                         const Key& k2, Value v2)
         : _v(),
