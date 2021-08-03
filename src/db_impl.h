@@ -33,6 +33,7 @@ namespace cowbpt {
         Status Get(const ReadOptions& options, const Slice& key,
                     std::string* value) override;
         Status ManualCheckPoint() override;
+        void DeepTraverse(const Bpt::NodePtr& root);
         // Iterator* NewIterator(const ReadOptions&) override;
         // const Snapshot* GetSnapshot() override;
         // void ReleaseSnapshot(const Snapshot* snapshot) override;
@@ -56,6 +57,7 @@ namespace cowbpt {
         void RemoveObsoleteFiles();
     
     private:
+        typedef Bpt::NodePtr NodePtr;
         friend class DB;
 
         Env* _env;

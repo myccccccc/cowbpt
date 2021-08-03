@@ -426,7 +426,30 @@ namespace cowbpt {
         auto root = _bpt->get_root_node();
         
         // traverse the tree and put serialized pages into internalDB
+        DeepTraverse(root);
         
         return Status::OK();
+    }
+
+    void DBImpl::DeepTraverse(const NodePtr& root) {
+
+        // Serialize dirty page and flush into internalDB
+        if (root->is_dirty()) {
+            std::string str_key, str_value;
+            PutFixed64(&str_key, root->get_node_id());
+            root->serialize(str_value);
+
+            leveldb::Slice key = str_key;
+            leveldb::Slice value = str_value;
+            auto writeOptions = new leveldb::WriteOptions();
+            _internalDB->Put(*writeOptions, key, value);
+        }
+
+        if (root->is_internalnode()) {
+            std::vector<NodePtr> child_nodes = root->get_child_nodes();
+            for (auto & child_node : child_nodes) {
+                DeepTraverse(child_node);
+            }
+        }
     }
 }
