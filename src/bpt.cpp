@@ -14,6 +14,15 @@ namespace cowbpt {
       return _root->dump();
     }
 
+    Bpt::NodePtr Bpt::get_root_node() {
+      NodePtr root;
+      {
+        std::lock_guard<std::mutex> lck(_mutex);
+        root = _root;
+      }
+      return root;
+    }
+
     Slice Bpt::get(const Slice& key) {
       std::vector<NodePtr> parents;
       std::vector<int> parent_versions;

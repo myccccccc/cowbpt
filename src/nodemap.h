@@ -1,6 +1,7 @@
 #include <deque>
 #include <algorithm>
 #include <memory>
+#include <vector>
 
 #ifndef NODEMAP_H
 #define NODEMAP_H
@@ -124,6 +125,15 @@ namespace cowbpt {
         size_t size() {
             return _v.size();
         }
+
+        std::vector<Value> get_values() {
+            std::vector<Value> res;
+            for(auto p : _v) {
+                res.push_back(p.second);
+            }
+            return res;
+        }
+
         void put(const Key& k, const Value& v) {
             auto offset = find_greater_or_equal(k);
             assert(size() == 1 || offset == size() ||_cmp(k, _v[offset].first));

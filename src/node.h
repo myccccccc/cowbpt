@@ -4,6 +4,7 @@
 #include <atomic>
 #include "slice.h"
 #include "nodemap.h"
+#include "status.h"
 #include "gflags/gflags.h"
 
 
@@ -63,6 +64,18 @@ public:
     void set_node_id(uint64_t node_id) {
         _node_id = node_id;
     }
+
+    bool is_dirty() {
+        return _dirty;
+    }
+
+    bool is_in_memory() {
+        return _in_memory;
+    }
+
+    // if this is a leaf node, panic
+    virtual std::vector<NodePtr> get_child_nodes() = 0;
+
     // return the number of key-value pairs in the node,
     // not thread safe
     virtual size_t size() = 0;
@@ -122,13 +135,18 @@ public:
     // find the child node by key, fix this node
     virtual void fix_child(const Key& k) = 0;
 
+    virtual Status serialize(std::string& result) = 0;
+    virtual Status deserialize(const std::string& byte_string) = 0;
+
     // TODO: copy
 
 protected:
     std::atomic<int> _version; // the node version will increment 1 for every write on this node
     std::mutex _mutex; // when a shared ptr is accessed by mutiple threads, it needs external sync
     const Comparator _cmp;
-    uint64_t _node_id;
+    uint64_t _node_id = 0;
+    bool _dirty = false;
+    bool _in_memory = false;
 
 protected:
     void increase_version() {
@@ -168,6 +186,17 @@ public:
     : LeafNode(std::make_shared<KVMap>(cmp), cmp) {
     }
 
+    // if this is a leaf node, panic
+    virtual std::vector<NodePtr> get_child_nodes() override {
+        assert(false);
+        return std::vector<NodePtr>();
+    }
+    virtual Status serialize(std::string& result) override {
+        return Status::OK();
+    }
+    virtual Status deserialize(const std::string& byte_string) override {
+        return Status::OK();
+    }
     virtual std::string dump() override {
         return _kvmap->dump();
     }
@@ -318,6 +347,17 @@ public:
     InternalNode(Comparator cmp, NodePtr v1, const Key& k2, NodePtr v2) 
     : InternalNode(std::make_shared<KVMap>(cmp, v1, k2, v2), cmp){
 
+    }
+
+    // if this is a leaf node, panic
+    virtual std::vector<NodePtr> get_child_nodes() {
+        return _kvmap->get_values();
+    }
+    virtual Status serialize(std::string& result) override {
+        return Status::OK();
+    }
+    virtual Status deserialize(const std::string& byte_string) override {
+        return Status::OK();
     }
 
     virtual bool is_leafnode() override {

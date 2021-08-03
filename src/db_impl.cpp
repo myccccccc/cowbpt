@@ -418,4 +418,15 @@ namespace cowbpt {
         }
         return result;
     }
+
+    Status DBImpl::ManualCheckPoint() {
+        // TODO: no need to hold the lock that lang
+        std::lock_guard<std::mutex> lck(_mutex);
+
+        auto root = _bpt->get_root_node();
+        
+        // traverse the tree and put serialized pages into internalDB
+        
+        return Status::OK();
+    }
 }

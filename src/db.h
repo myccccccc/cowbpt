@@ -67,6 +67,9 @@ class DB {
   virtual Status Get(const ReadOptions& options, const Slice& key,
                      std::string* value) = 0;
 
+  // manually take a checkponit on the inmemory bpt, will drop the previous log after finished checkointing
+  virtual Status ManualCheckPoint() = 0;
+
   // // Return a heap-allocated iterator over the contents of the database.
   // // The result of NewIterator() is initially invalid (caller must
   // // call one of the Seek methods on the iterator before using it).

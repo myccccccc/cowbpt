@@ -38,6 +38,7 @@ namespace cowbpt {
 
         std::string dump();
     
+        NodePtr get_root_node();
     private:
         std::mutex _mutex; // _root is a shared pointer, need to be protected when it is being read and write currently;
         BptComparator _cmp;
