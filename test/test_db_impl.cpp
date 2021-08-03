@@ -410,10 +410,10 @@ TEST(DBImplTest, DBImplRandomCurrentCRUD) {
       del_threads.push_back(std::thread(del_thread, db, &del_sts[i], &st_delten, &st_delten_mutex));
   }
 
-  std::vector<std::thread> read_del_threads;
-  for(auto i = 0; i < 100; i++) {
-      read_del_threads.push_back(std::thread(read_del_thread, db, &st_delten, &st_delten_mutex));
-  }
+//   std::vector<std::thread> read_del_threads;
+//   for(auto i = 0; i < 100; i++) {
+//       read_del_threads.push_back(std::thread(read_del_thread, db, &st_delten, &st_delten_mutex));
+//   }
 
   std::vector<std::thread> write_threads;
   assert(sts.size() == 100);
@@ -432,9 +432,9 @@ TEST(DBImplTest, DBImplRandomCurrentCRUD) {
       del_threads[i].join();
   }
 
-  for(size_t i  = 0; i < read_del_threads.size(); i++) {
-      read_del_threads[i].join();
-  }
+//   for(size_t i  = 0; i < read_del_threads.size(); i++) {
+//       read_del_threads[i].join();
+//   }
 
   for(size_t i  = 0; i < write_threads.size(); i++) {
       write_threads[i].join();

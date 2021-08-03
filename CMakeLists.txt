@@ -4,7 +4,7 @@ project(cowbpt)
     
 set(CMAKE_CXX_FLAGS   "-std=c++11 -g -Wall")             
 set(CMAKE_CXX_FLAGS_DEBUG   "-O0" )             
-set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG " )   
+set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG " ) 
 
 option(COWBPT_BUILD_TESTS "Build cowbpt's unit tests" ON)
 
@@ -35,6 +35,13 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/glog)
 target_link_libraries(cowbpt_library
         glog::glog)
 
+SET(LEVELDB_BUILD_TESTS OFF)
+SET(LEVELDB_BUILD_BENCHMARKS OFF)
+SET(LEVELDB_INSTALL OFF)
+add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/leveldb)
+target_link_libraries(cowbpt_library
+        leveldb)
+
 find_path(ROCKSDB_INCLUDE_PATH NAMES rocksdb/db.h)
 find_library(ROCKSDB_LIB NAMES rocksdb)
 if (NOT ROCKSDB_LIB OR NOT ROCKSDB_INCLUDE_PATH)
@@ -50,15 +57,18 @@ target_link_libraries(cowbpt_library
 if(COWBPT_BUILD_TESTS)
         enable_testing()
 
-        set(install_gtest OFF)
-        set(install_gmock OFF)
-        set(build_gmock ON)
-        add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/googletest)
+        find_path(gtest_SOURCE_DIR NAMES gtest/gtest.h REQUIRED)
+        find_path(gmock_SOURCE_DIR NAMES gmock/gmock.h REQUIRED)
+        find_library(GTEST_LIB NAMES gtest REQUIRED)
+        find_library(GTEST_MAIN_LIB names gtest_main REQUIRED)
+        find_library(GMOCK_LIB names gmock REQUIRED)
 
         include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
+        include_directories(${gmock_SOURCE_DIR}/include ${gmock_SOURCE_DIR})
+        message(STATUS ${gtest_SOURCE_DIR})
         file(GLOB TEST_SRC_FILES ${PROJECT_SOURCE_DIR}/test/*.cpp)
         add_executable(runUnitTests ${TEST_SRC_FILES})
-        target_link_libraries(runUnitTests gtest gtest_main gmock)
+        target_link_libraries(runUnitTests ${GTEST_LIB} ${GTEST_MAIN_LIB} ${GMOCK_LIB})
         target_link_libraries(runUnitTests cowbpt_library)
         add_test(UnitTests runUnitTests)
 
