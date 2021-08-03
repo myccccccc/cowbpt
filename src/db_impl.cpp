@@ -432,6 +432,9 @@ namespace cowbpt {
     }
 
     void DBImpl::DeepTraverse(const NodePtr& root) {
+        if (root == nullptr || !root->is_in_memory()) {
+            return;
+        }
 
         // Serialize dirty page and flush into internalDB
         if (root->is_dirty()) {
@@ -452,4 +455,5 @@ namespace cowbpt {
             }
         }
     }
+
 }
