@@ -8,7 +8,8 @@
 #include "db.h"
 #include "bpt.h"
 #include "env.h"
-#include "rocksdb/db.h"
+#include "leveldb/db.h"
+#include "leveldb/db.h"
 #include "log_writer.h"
 
 namespace cowbpt {
@@ -67,14 +68,14 @@ namespace cowbpt {
         WritableFilePtr _logfile;
         log::Writer* _log; 
 
-        rocksdb::DB* _internalDB;
+        leveldb::DB* _internalDB;
 
         std::mutex _mutex;
 
         const std::string _dbname;
 
         Options _DB_options;
-        rocksdb::Options _internalDB_options;
+        leveldb::Options _internalDB_options;
 
         std::deque<Writer*> _writers;
 

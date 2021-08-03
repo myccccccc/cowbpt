@@ -56,6 +56,13 @@ public:
         return node_version == _version.load(std::memory_order_acquire);
     }
 
+    uint64_t get_node_id() {
+        return _node_id;
+    }
+
+    void set_node_id(uint64_t node_id) {
+        _node_id = node_id;
+    }
     // return the number of key-value pairs in the node,
     // not thread safe
     virtual size_t size() = 0;
@@ -121,6 +128,7 @@ protected:
     std::atomic<int> _version; // the node version will increment 1 for every write on this node
     std::mutex _mutex; // when a shared ptr is accessed by mutiple threads, it needs external sync
     const Comparator _cmp;
+    uint64_t _node_id;
 
 protected:
     void increase_version() {

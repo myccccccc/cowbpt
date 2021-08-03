@@ -61,9 +61,9 @@ namespace cowbpt {
         }
         env->RemoveDir(dbname);  // Ignore error in case dir contains other files
 
-        rocksdb::Options rocks_options;
-        rocksdb::Status rocks_status = rocksdb::DestroyDB(InternalDBName(dbname), rocks_options);
-        // TODO convert rocks status to cowbpt status
+        leveldb::Options level_options;
+        leveldb::Status level_status = leveldb::DestroyDB(InternalDBName(dbname), level_options);
+        // TODO convert level status to cowbpt status
         return result;
     }
 
@@ -119,29 +119,29 @@ namespace cowbpt {
     }
 
     Status DBImpl::recover_meta_from_internalDB() {
-        rocksdb::Status rocks_status = rocksdb::DB::Open(_internalDB_options, InternalDBName(_dbname), &_internalDB);
-        if (!rocks_status.ok()) {
-            LOG(ERROR) << "Fail to open internal rocksdb: " << rocks_status.ToString();
-            return Status::Corruption(rocks_status.ToString());
+        leveldb::Status level_status = leveldb::DB::Open(_internalDB_options, InternalDBName(_dbname), &_internalDB);
+        if (!level_status.ok()) {
+            LOG(ERROR) << "Fail to open internal leveldb: " << level_status.ToString();
+            return Status::Corruption(level_status.ToString());
         }
-        LOG(INFO) << "Succeed to open internal rocksdb";
+        LOG(INFO) << "Succeed to open internal leveldb";
 
         std::string value;
-        rocks_status = _internalDB->Get(rocksdb::ReadOptions(), LogFileNumberKey(), &value);
-        if (rocks_status.ok()) {
+        level_status = _internalDB->Get(leveldb::ReadOptions(), LogFileNumberKey(), &value);
+        if (level_status.ok()) {
             _last_obsolete_logfile_number = DecodeFixed64(value.c_str());
-        } else if (!rocks_status.IsNotFound()) {
-            LOG(ERROR) << "Error when reading logfile_number from internal db: " << rocks_status.ToString();
-            return Status::Corruption(rocks_status.ToString());
+        } else if (!level_status.IsNotFound()) {
+            LOG(ERROR) << "Error when reading logfile_number from internal db: " << level_status.ToString();
+            return Status::Corruption(level_status.ToString());
         }
 
         value.clear();
-        rocks_status = _internalDB->Get(rocksdb::ReadOptions(), LastSeqInLastLogFileKey(), &value);
-        if (rocks_status.ok()) {
+        level_status = _internalDB->Get(leveldb::ReadOptions(), LastSeqInLastLogFileKey(), &value);
+        if (level_status.ok()) {
             SetLastSequence(DecodeFixed64(value.c_str()));
-        } else if (!rocks_status.IsNotFound()) {
-            LOG(ERROR) << "Error when reading LastSeqInLastLogFile from internal db: " << rocks_status.ToString();
-            return Status::Corruption(rocks_status.ToString());
+        } else if (!level_status.IsNotFound()) {
+            LOG(ERROR) << "Error when reading LastSeqInLastLogFile from internal db: " << level_status.ToString();
+            return Status::Corruption(level_status.ToString());
         }
 
         // TODO: recover others

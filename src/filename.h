@@ -34,8 +34,8 @@ std::string DescriptorFileName(const std::string& dbname, uint64_t number);
 // "dbname".
 std::string CurrentFileName(const std::string& dbname);
 
-// Return the name of the internal rocks DB of the current db.  
-// the internal rocks DB constains all the necessary info to recovery
+// Return the name of the internal level DB of the current db.  
+// the internal level DB constains all the necessary info to recovery
 std::string InternalDBName(const std::string& dbname);
 
 // Return the name of a temporary file owned by the db named "dbname".
@@ -48,10 +48,10 @@ std::string TempFileName(const std::string& dbname, uint64_t number);
 bool ParseFileName(const std::string& filename, uint64_t* number,
                    FileType* type);
 
-// log_number key that stores in rocksdb
+// log_number key that stores in leveldb
 std::string LogFileNumberKey();
 
-// LastSeqInLastLogFile key that stores in rocksdb
+// LastSeqInLastLogFile key that stores in leveldb
 std::string LastSeqInLastLogFileKey();
 }  
 
