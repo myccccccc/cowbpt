@@ -90,7 +90,7 @@ namespace cowbpt
             //    nptr->deserialize(val.substr(1));
             }
 
-            return nullptr;
+            return nptr;
         }
 
         void set_snapshot_seq(uint64_t snapshot_seq)
