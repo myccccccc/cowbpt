@@ -35,9 +35,9 @@ add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/glog)
 target_link_libraries(cowbpt_library
         glog::glog)
 
-SET(LEVELDB_BUILD_TESTS OFF)
-SET(LEVELDB_BUILD_BENCHMARKS OFF)
-SET(LEVELDB_INSTALL OFF)
+option(LEVELDB_BUILD_TESTS OFF)
+option(LEVELDB_BUILD_BENCHMARKS OFF)
+option(LEVELDB_INSTALL OFF)
 add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/leveldb)
 target_link_libraries(cowbpt_library
         leveldb)
