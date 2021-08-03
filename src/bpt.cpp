@@ -3,11 +3,14 @@
 namespace cowbpt {
     DECLARE_int32(DEAD_LOCK_WAIT_MS);
 
-    Bpt::Bpt(Comparator* user_comparator)
+    Bpt::Bpt(Comparator* user_comparator, NodeManager* nm, NodePtr root)
     : _mutex(),
       _cmp(user_comparator),
-      _root(new LeafNode<BptComparator>(_cmp)){
-
+      _root(root),
+      _nm(nm) {
+        if (_root == nullptr) {
+          _root.reset(new LeafNode<BptComparator>(_cmp));
+        }
     }
 
     std::string Bpt::dump() {

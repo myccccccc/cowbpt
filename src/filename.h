@@ -53,6 +53,12 @@ std::string LogFileNumberKey();
 
 // LastSeqInLastLogFile key that stores in leveldb
 std::string LastSeqInLastLogFileKey();
+
+// LastCheckpointSnapshotSeq key stores in leveldb
+std::string LastCheckpointSnapshotSeqKey();
+
+// RootPageID key stores in leveldb
+std::string RootPageIDKey();
 }  
 
 #endif

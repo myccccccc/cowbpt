@@ -106,8 +106,13 @@ namespace cowbpt {
             return s;
         }
 
+        s = recover_pages_from_internalDB();
+        if (!s.ok()) {
+            return s;
+        }
+
         if (_bpt == nullptr) {
-            _bpt = new Bpt(_DB_options.comparator);
+            _bpt = new Bpt(_DB_options.comparator, _nm);
         }
 
         s = recover_log_files();
@@ -144,9 +149,43 @@ namespace cowbpt {
             return Status::Corruption(level_status.ToString());
         }
 
+        value.clear();
+        level_status = _internalDB->Get(leveldb::ReadOptions(), LastCheckpointSnapshotSeqKey(), &value);
+        if (level_status.ok()) {
+            _last_checkpoint_snapshot_seq = DecodeFixed64(value.c_str());
+        } else if (!level_status.IsNotFound()) {
+            LOG(ERROR) << "Error when reading LastCheckpointSnapshotSeq from internal DB: " << level_status.ToString();
+            return Status::Corruption(level_status.ToString());
+        }
+
         // TODO: recover others
 
         LOG(INFO) << "Succeed to recover meta from internal db";
+        return Status::OK();
+    }
+
+    Status DBImpl::recover_pages_from_internalDB() {
+        if (_last_checkpoint_snapshot_seq == 0) {
+            LOG(INFO) << "There are no previous checkpoint, skip recovering pages";
+            _nm = new NodeManager(_internalDB);
+            return Status::OK();
+        }
+
+        _nm = new NodeManager(_internalDB, _last_checkpoint_snapshot_seq);
+
+        std::string value;
+        leveldb::Status level_status = _internalDB->Get(leveldb::ReadOptions(), RootPageIDKey(), &value, _last_checkpoint_snapshot_seq);
+        uint64_t root_page_id;
+        if (level_status.ok()) {
+            root_page_id = DecodeFixed64(value.c_str());
+        } else {
+            LOG(ERROR) << "Fail to find root page id when there are LastCheckpointSnapshotSeq found in internalDB";
+            return Status::NotFound(level_status.ToString());
+        }
+
+        NodePtr root = _nm->fetch(root_page_id);
+        _bpt = new Bpt(_DB_options.comparator, _nm, root);
+        
         return Status::OK();
     }
 
@@ -179,6 +218,10 @@ namespace cowbpt {
                 return s;
             }
         }
+
+        // finish replaying wal after last check point, no need to read the snapshot version since now
+        _nm->set_snapshot_seq(0);
+        
         return Status::OK();
     }
 
@@ -241,6 +284,7 @@ namespace cowbpt {
     DBImpl::DBImpl(const Options& raw_options, const std::string& dbname)
     : _env(raw_options.env),
       _bpt(nullptr),
+      _nm(nullptr),
       _last_seq_id(0),
       _logfile_number(0),
       _last_obsolete_logfile_number(0),
@@ -251,7 +295,8 @@ namespace cowbpt {
       _dbname(dbname),
       _DB_options(raw_options),
       _internalDB_options(),
-      _tmp_batch(new WriteBatch) {
+      _tmp_batch(new WriteBatch),
+      _last_checkpoint_snapshot_seq(0) {
           _internalDB_options.create_if_missing = _DB_options.create_if_missing;
           _internalDB_options.error_if_exists = _DB_options.error_if_exists;
     }
@@ -265,6 +310,9 @@ namespace cowbpt {
         }
         if (_internalDB) {
             delete _internalDB;
+        }
+        if (_nm) {
+            delete _nm;
         }
         delete _tmp_batch;
     }

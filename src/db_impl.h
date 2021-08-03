@@ -38,6 +38,8 @@ namespace cowbpt {
         // void ReleaseSnapshot(const Snapshot* snapshot) override;
     
     private:
+        typedef Bpt::NodePtr NodePtr;
+
         // Return the last sequence number.
         uint64_t LastSequence() const { return _last_seq_id; }
 
@@ -49,6 +51,7 @@ namespace cowbpt {
 
         Status Recover();
         Status recover_meta_from_internalDB();
+        Status recover_pages_from_internalDB();
         Status recover_log_files();
         Status recover_log(uint64_t log_number);
 
@@ -61,6 +64,8 @@ namespace cowbpt {
         Env* _env;
 
         Bpt* _bpt;
+
+        NodeManager* _nm;
 
         uint64_t _last_seq_id;
         uint64_t _logfile_number;
@@ -82,6 +87,7 @@ namespace cowbpt {
 
         WriteBatch* _tmp_batch;
         
+        uint64_t _last_checkpoint_snapshot_seq;
     };
 }
 #endif

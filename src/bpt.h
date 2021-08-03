@@ -3,11 +3,14 @@
 #include "comparator.h"
 #include "slice.h"
 #include "node.h"
+#include "leveldb/db.h"
 
 #ifndef BPT_H
 #define BPT_H
 
 namespace cowbpt {
+
+    class NodeManager;
 
     class Bpt {
     private:
@@ -23,10 +26,11 @@ namespace cowbpt {
             bool operator() (const Slice& x, const Slice& y) const {return _user_comparator->operator()(x, y);}
         };
 
+    public:
         typedef std::shared_ptr<Node<BptComparator>> NodePtr;
         
     public:
-        Bpt(Comparator* user_comparator);
+        Bpt(Comparator* user_comparator, NodeManager* nm = nullptr, NodePtr root = nullptr);
 
         Bpt(const Bpt& ) = delete;
         Bpt& operator = (const Bpt& ) = delete;
@@ -43,8 +47,29 @@ namespace cowbpt {
         std::mutex _mutex; // _root is a shared pointer, need to be protected when it is being read and write currently;
         BptComparator _cmp;
         NodePtr _root;
+        NodeManager* _nm;
     };
 
+    class NodeManager {
+      private:
+         typedef Bpt::NodePtr NodePtr;
+      public:
+         NodeManager(leveldb::DB* internalDB, uint64_t snapshot_seq = 0)
+         : _internalDB(internalDB),
+           _snapshot_seq(snapshot_seq) {}
+
+         NodePtr fetch(uint64_t page_id) {
+            return nullptr;
+         }
+         
+         void set_snapshot_seq(uint64_t snapshot_seq) {
+            _snapshot_seq = snapshot_seq;
+         }
+
+      private:
+         leveldb::DB* _internalDB;
+         uint64_t _snapshot_seq;
+   };
 }
 
 #endif
