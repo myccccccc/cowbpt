@@ -59,6 +59,9 @@ std::string LastCheckpointSnapshotSeqKey();
 
 // RootPageID key stores in leveldb
 std::string RootPageIDKey();
+
+// NextNodeID key stores in leveldb
+std::string NextNodeIDKey();
 }  
 
 #endif

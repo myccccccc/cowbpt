@@ -12,20 +12,19 @@ namespace cowbpt {
 
     class NodeManager;
 
-    class Bpt {
+    struct BptComparator {
+    public:
+        BptComparator(Comparator* user_comparator)
+        : _user_comparator(user_comparator){
+
+        }
     private:
-        struct BptComparator {
-        public:
-            BptComparator(Comparator* user_comparator)
-            : _user_comparator(user_comparator){
+        Comparator* _user_comparator;
+    public:
+        bool operator() (const Slice& x, const Slice& y) const {return _user_comparator->operator()(x, y);}
+    };
 
-            }
-        private:
-            Comparator* _user_comparator;
-        public:
-            bool operator() (const Slice& x, const Slice& y) const {return _user_comparator->operator()(x, y);}
-        };
-
+    class Bpt {
     public:
         typedef std::shared_ptr<Node<BptComparator>> NodePtr;
         
@@ -54,9 +53,11 @@ namespace cowbpt {
       private:
          typedef Bpt::NodePtr NodePtr;
       public:
-         NodeManager(leveldb::DB* internalDB, uint64_t snapshot_seq = 0)
+         NodeManager(leveldb::DB* internalDB, Comparator* user_comparator, uint64_t snapshot_seq = 0, uint64_t next_node_id = 0)
          : _internalDB(internalDB),
-           _snapshot_seq(snapshot_seq) {}
+           _snapshot_seq(snapshot_seq),
+           _next_node_id(next_node_id),
+           _cmp(user_comparator) {}
 
          NodePtr fetch(uint64_t page_id) {
             return nullptr;
@@ -69,6 +70,8 @@ namespace cowbpt {
       private:
          leveldb::DB* _internalDB;
          uint64_t _snapshot_seq;
+         uint64_t _next_node_id;
+         BptComparator _cmp;
    };
 }
 

@@ -130,4 +130,6 @@ std::string LastSeqInLastLogFileKey() { return "LastSeqInLastLogFile"; }
 std::string LastCheckpointSnapshotSeqKey() { return "LastCheckpointSnapshotSeq"; }
 
 std::string RootPageIDKey() { return "RootPageID"; }
+
+std::string NextNodeIDKey() {return "NextNodeID"; }
 } 

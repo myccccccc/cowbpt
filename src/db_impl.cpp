@@ -165,16 +165,26 @@ namespace cowbpt {
     }
 
     Status DBImpl::recover_pages_from_internalDB() {
+
+        std::string value;
+        leveldb::Status level_status = _internalDB->Get(leveldb::ReadOptions(), NextNodeIDKey(), &value);
+        uint64_t next_node_id = 0;
+        if (level_status.ok()) {
+            next_node_id = DecodeFixed64(value.c_str());
+        }
+
         if (_last_checkpoint_snapshot_seq == 0) {
             LOG(INFO) << "There are no previous checkpoint, skip recovering pages";
-            _nm = new NodeManager(_internalDB);
+            _nm = new NodeManager(_internalDB, this->_DB_options.comparator);
             return Status::OK();
         }
 
-        _nm = new NodeManager(_internalDB, _last_checkpoint_snapshot_seq);
+        assert(next_node_id != 0);
 
-        std::string value;
-        leveldb::Status level_status = _internalDB->Get(leveldb::ReadOptions(), RootPageIDKey(), &value, _last_checkpoint_snapshot_seq);
+        _nm = new NodeManager(_internalDB, this->_DB_options.comparator, _last_checkpoint_snapshot_seq, next_node_id);
+
+        value.clear();
+        level_status = _internalDB->Get(leveldb::ReadOptions(), RootPageIDKey(), &value, _last_checkpoint_snapshot_seq);
         uint64_t root_page_id;
         if (level_status.ok()) {
             root_page_id = DecodeFixed64(value.c_str());
