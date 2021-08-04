@@ -94,15 +94,19 @@ namespace cowbpt {
         // find the offset of _v where _v[offset] is greater or equal to k
         // return _v length if not found
         size_t find_greater_or_equal(const Key& k) {
-            // TODO: use binary search
-            size_t i = 0;
-            for (; i < _v.size(); i++) {
-                if (_cmp(_v[i].first, k)) {
-                    continue;
-                }
-                break;
+            if(size() == 0)
+                return 0;
+            if(_cmp(_v[size() - 1].first, k))
+                return size();
+            size_t l = 0, r = _v.size() - 1;
+            while(l < r){
+                size_t m = (l + r) / 2;
+                if(_cmp(_v[m].first, k))
+                    l = m + 1;
+                else
+                    r = m;
             }
-            return i;
+            return l;
         }
 
         ArrayMap _v; // sorted by Key
@@ -270,23 +274,27 @@ namespace cowbpt {
     private:
         // find the offset of _v where _v[offset]'s child node may contains Key down below
         size_t find_greater_or_equal(const Key& k) {
-            if (size() == 0) {
+
+            if(size() == 0)
                 return 0;
-            }
+            if(_cmp(_v[size() - 1].first, k))
+                return size();
+
             assert(size() >= 1);
             // TODO: use binary search
-            size_t i = 1;
             // we don't check i = 0 for internal node map, this is different from leaf node map
             // since in the leaf node _v[0] represent the exact key-value pair
             // however int internal node _v[0] represent any keys that are smaller than _v[1]
             // or the whole key space that belongs to this node if _v[1] does not exist
-            for (; i < _v.size(); i++) {
-                if (_cmp(_v[i].first, k)) {
-                    continue;
-                }
-                break;
+            size_t l = 1, r = _v.size() - 1;
+            while(l < r){
+                size_t m = (l + r) / 2;
+                if(_cmp(_v[m].first, k))
+                    l = m + 1;
+                else
+                    r = m;
             }
-            return i;
+            return l;
         }
 
         ArrayMap _v; // sorted by Key
