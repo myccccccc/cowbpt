@@ -2,6 +2,7 @@
 #define DB_IMPL_H
 
 #include <cassert>
+#include <thread>
 #include <condition_variable>
 
 
@@ -47,6 +48,10 @@ namespace cowbpt {
         void SetLastSequence(uint64_t s) {
             assert(s >= _last_seq_id);
             _last_seq_id = s;
+        }
+        void run_period(){
+            std::this_thread::sleep_for(std::chrono::seconds(600));
+            ManualCheckPoint();
         }
 
         Status Recover();

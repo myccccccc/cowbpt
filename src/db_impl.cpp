@@ -38,6 +38,7 @@ namespace cowbpt {
         } else {
             delete impl;
         }
+
         return s;
     }
 
@@ -317,6 +318,8 @@ namespace cowbpt {
       _max_node_id_in_internalDB(0) {
           _internalDB_options.create_if_missing = _DB_options.create_if_missing;
           _internalDB_options.error_if_exists = _DB_options.error_if_exists;
+        std::thread run_checkpoint(&DBImpl::run_period, this);
+        run_checkpoint.detach();
     }
       
     DBImpl::~DBImpl() {
