@@ -24,6 +24,9 @@ namespace cowbpt {
         size_t size() {
             return _v.size();
         }
+        ArrayMap* get_kv_array() {
+            return &_v;
+        }
         void put(const Key& k, const Value& v) {
             auto offset = find_greater_or_equal(k);
             if (offset < _v.size() && !_cmp(k, _v[offset].first) && !_cmp(_v[offset].first, k)) {
@@ -114,7 +117,9 @@ namespace cowbpt {
           _cmp(cmp) {
         }
     public:
-        InternalNodeMap() = delete;
+        InternalNodeMap(Comparator cmp)
+        : _v(),
+        _cmp(cmp) {}
         virtual ~InternalNodeMap() = default;
         InternalNodeMap(Comparator cmp, Value v1, 
                         const Key& k2, Value v2)
@@ -133,6 +138,9 @@ namespace cowbpt {
                 res.push_back(p.second);
             }
             return res;
+        }
+        ArrayMap* get_kv_array() {
+            return &_v;
         }
 
         void put(const Key& k, const Value& v) {
