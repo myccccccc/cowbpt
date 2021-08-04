@@ -7,6 +7,7 @@
 #include "status.h"
 #include "coding.h"
 #include "gflags/gflags.h"
+#include "glog/logging.h"
 
 
 #ifndef NODE_H
@@ -193,7 +194,7 @@ public:
         return std::vector<NodePtr>();
     }
     virtual Status serialize(std::string& result) override {
-        PutFixed32(&result, 0);
+        PutVarint32(&result, 0);
         auto values = _kvmap->get_kv_array();
         for (auto i = values->begin(); i != values->end(); i++) {
             // Serialize key length
@@ -207,11 +208,14 @@ public:
 
     virtual Status deserialize(const std::string& byte_string) override {
         Slice input = byte_string;
+        // skip node type
+        uint32_t node_type;
+        GetVarint32(&input, &node_type);
         auto key = new Slice();
         while (GetLengthPrefixedSlice(&input, key)) {
             auto value = new Slice();
             if (!GetLengthPrefixedSlice(&input, value)) {
-                LOG(ERROR) << "Deserialize error" << std::endl;
+                LOG(ERROR) << "Deserialize error";
                 return Status::IOError("Key is not corresponding to any value");
             }
             this->put(*key, *value);
@@ -380,24 +384,27 @@ public:
         return _kvmap->get_values();
     }
     virtual Status serialize(std::string& result) override {
-        PutFixed32(&result, 1);
+        PutVarint32(&result, 1);
         auto values = _kvmap->get_kv_array();
         for (auto i = values->begin(); i != values->end(); i++) {
             // Serialize key length
             PutLengthPrefixedSlice(&result, (*i).first);
             // Serialize value length
             if (((*i).second)->is_leafnode()) {
-                PutFixed32(&result, 0);
+                PutVarint32(&result, 0);
             } else {
-                PutFixed32(&result, 1);
+                PutVarint32(&result, 1);
             }
-            PutFixed64(&result, ((*i).second)->get_node_id());
+            PutVarint64(&result, ((*i).second)->get_node_id());
         }
 
         return Status::OK();
     }
     virtual Status deserialize(const std::string& byte_string) override {
         Slice input = byte_string;
+        // skip node type
+        uint32_t type;
+        GetVarint32(&input, &type);
         auto key = new Slice();
         while (GetLengthPrefixedSlice(&input, key)) {
             uint32_t node_type;

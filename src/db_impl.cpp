@@ -505,7 +505,7 @@ namespace cowbpt {
             auto writeOptions = new leveldb::WriteOptions();
             leveldb::Status status = _internalDB->Put(*writeOptions, key, value);
             if (!status.ok()) {
-                LOG(ERROR) << "Fail to put to internalDB while deserializing";
+                LOG(FATAL) << "Fail to put to internalDB while deserializing";
             }
         }
 
