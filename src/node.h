@@ -55,6 +55,16 @@ public:
         _mutex.unlock();
     }
 
+    void stage() {
+        _staged = true;
+    }
+
+    bool is_staged() {
+        return _staged;
+    }
+
+    virtual NodePtr copy() = 0;
+
     bool check_version(int node_version) {
         return node_version == _version.load(std::memory_order_acquire);
     }
@@ -127,6 +137,8 @@ public:
 
     virtual InternalNodeValue get_internalnode_value(const Key& k) = 0;
 
+    virtual void replace_internal_node_value(const Key& k, InternalNodeValue v) = 0;
+
     virtual LeafNodeValue get_leafnode_value(const Key& k) = 0;
 
     // need to hold the lock (lock coupling) before call put
@@ -162,6 +174,7 @@ protected:
     bool _dirty = false;
     bool _in_memory = false;
     uint64_t _ref_count = 0;
+    bool _staged = false;
 
 protected:
     void increase_version() {
@@ -197,6 +210,19 @@ private:
     typedef LeafNodeMap<Key, LeafNodeValue, Comparator> KVMap;
     typedef std::shared_ptr<KVMap> KVMapPtr;
 public:
+    virtual NodePtr copy() override {
+        LeafNode<Comparator>* a = new LeafNode<Comparator>(this->_cmp);
+        a->_kvmap.reset(this->_kvmap->copy());
+        a->_dirty = this->_dirty;
+        a->_in_memory = this->_in_memory;
+        a->_node_id = this->_node_id;
+        a->_ref_count = this->_ref_count;
+        assert(this->_staged);
+        a->_staged = false;
+        a->_version = this->_version.load(std::memory_order_relaxed);
+        NodePtr res(a);
+        return res;
+    }
     LeafNode(Comparator cmp)
     : LeafNode(std::make_shared<KVMap>(cmp), cmp) {
     }
@@ -261,6 +287,10 @@ public:
     virtual InternalNodeValue get_internalnode_value(const Key& k) override {
         assert(false);
         return nullptr;
+    }
+
+    virtual void replace_internal_node_value(const Key& k, InternalNodeValue v) {
+        assert(false);
     }
 
     // if this is a leaf node, get reutrns the pointer to the value if target key exist, otherwise nullptr
@@ -381,6 +411,20 @@ private:
     typedef InternalNodeMap<Key, InternalNodeValue, Comparator> KVMap;
     typedef std::shared_ptr<KVMap> KVMapPtr;
 public:
+    virtual NodePtr copy() override {
+        InternalNode<Comparator>* a = new InternalNode<Comparator>(this->_cmp);
+        a->_kvmap.reset(this->_kvmap->copy());
+        a->_dirty = this->_dirty;
+        a->_in_memory = this->_in_memory;
+        a->_node_id = this->_node_id;
+        a->_ref_count = this->_ref_count;
+        assert(this->_staged);
+        a->_staged = false;
+        a->_version = this->_version.load(std::memory_order_relaxed);
+        NodePtr res(a);
+        return res;
+    }
+
     InternalNode() = delete;
     InternalNode(Comparator cmp)
     : InternalNode(std::make_shared<KVMap>(cmp), cmp) {
@@ -468,6 +512,11 @@ public:
     virtual InternalNodeValue get_internalnode_value(const Key& k) override {
         // TODO: assert _mutex is locked
         return _kvmap->get(k);
+    }
+
+    virtual void replace_internal_node_value(const Key& k, InternalNodeValue v) override {
+        // TODO: assert _mutex is locked
+        _kvmap->replace(k, v);
     }
 
     // if this is a leaf node, get reutrns the pointer to the value if target key exist, otherwise nullptr

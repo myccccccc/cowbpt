@@ -21,6 +21,18 @@ namespace cowbpt {
       return _root->dump();
     }
 
+    Bpt::NodePtr Bpt::snaphot() {
+      NodePtr root = nullptr;
+      {
+        std::lock_guard<std::mutex> lck(_mutex);
+        root = _root;
+        root->lock();
+        root->stage();
+        root->unlock();
+      }
+      return root;
+    }
+
     Bpt::NodePtr Bpt::get_root_node() {
       NodePtr root;
       {
@@ -122,6 +134,23 @@ namespace cowbpt {
           parent = nullptr;
           child = _root;
           child->lock();
+
+          if (child->is_staged()) {
+            if (child->is_internalnode()) {
+              for(auto nptr : child->get_child_nodes()) {
+                nptr->lock();
+                nptr->stage();
+                nptr->unlock();
+              }
+            }
+            NodePtr copied_node = child->copy();
+            copied_node->lock();
+            child->unlock();
+            if(_nm) _nm->replace_node(child->get_node_id(), copied_node);
+            child = copied_node;
+            _root = copied_node;
+          }
+
           if (!hold_root_lock) {
             _mutex.unlock();
           }
@@ -130,6 +159,25 @@ namespace cowbpt {
         if (!child->is_in_memory()) {
           if(_nm) _nm->fetch(child->get_node_id(), child);
         }
+
+        if (child->is_staged()) {
+            if (child->is_internalnode()) {
+              for(auto nptr : child->get_child_nodes()) {
+                nptr->lock();
+                nptr->stage();
+                nptr->unlock();
+              }
+            }
+            NodePtr copied_node = child->copy();
+            copied_node->lock();
+            child->unlock();
+            if(_nm) _nm->replace_node(child->get_node_id(), copied_node);
+            child = copied_node;
+            if (parent != nullptr) {
+              parent->replace_internal_node_value(key, copied_node);
+            }
+          }
+
         if (child->need_split()) {
           if (parent == nullptr && !hold_root_lock) { // need split root, retry and get the root lock
             child->unlock();
@@ -159,6 +207,25 @@ namespace cowbpt {
           if (!child->is_in_memory()) {
             if(_nm) _nm->fetch(child->get_node_id(), child);
           }
+
+          if (child->is_staged()) {
+            if (child->is_internalnode()) {
+              for(auto nptr : child->get_child_nodes()) {
+                nptr->lock();
+                nptr->stage();
+                nptr->unlock();
+              }
+            }
+            NodePtr copied_node = child->copy();
+            copied_node->lock();
+            child->unlock();
+            if(_nm) _nm->replace_node(child->get_node_id(), copied_node);
+            child = copied_node;
+            if (parent != nullptr) {
+              parent->replace_internal_node_value(key, copied_node);
+            }
+          }
+
           continue;
         }
         if (hold_root_lock) {
@@ -189,6 +256,23 @@ namespace cowbpt {
           parent = nullptr;
           child = _root;
           child->lock();
+
+          if (child->is_staged()) {
+            if (child->is_internalnode()) {
+              for(auto nptr : child->get_child_nodes()) {
+                nptr->lock();
+                nptr->stage();
+                nptr->unlock();
+              }
+            }
+            NodePtr copied_node = child->copy();
+            copied_node->lock();
+            child->unlock();
+            if(_nm) _nm->replace_node(child->get_node_id(), copied_node);
+            child = copied_node;
+            _root = copied_node;
+          }
+          
           if (!hold_root_lock) {
             _mutex.unlock();
           }
@@ -197,6 +281,25 @@ namespace cowbpt {
         if (!child->is_in_memory()) {
           if(_nm) _nm->fetch(child->get_node_id(), child);
         }
+
+        if (child->is_staged()) {
+            if (child->is_internalnode()) {
+              for(auto nptr : child->get_child_nodes()) {
+                nptr->lock();
+                nptr->stage();
+                nptr->unlock();
+              }
+            }
+            NodePtr copied_node = child->copy();
+            copied_node->lock();
+            child->unlock();
+            if(_nm) _nm->replace_node(child->get_node_id(), copied_node);
+            child = copied_node;
+            if (parent != nullptr) {
+              parent->replace_internal_node_value(key, copied_node);
+            }
+          }
+
         if (child->need_fix(parent == nullptr)) {
           if (parent == nullptr && !hold_root_lock) { // need fix root, retry and get the root lock
             child->unlock();
@@ -227,6 +330,25 @@ namespace cowbpt {
           if (!child->is_in_memory()) {
             if(_nm) _nm->fetch(child->get_node_id(), child);
           }
+
+          if (child->is_staged()) {
+            if (child->is_internalnode()) {
+              for(auto nptr : child->get_child_nodes()) {
+                nptr->lock();
+                nptr->stage();
+                nptr->unlock();
+              }
+            }
+            NodePtr copied_node = child->copy();
+            copied_node->lock();
+            child->unlock();
+            if(_nm) _nm->replace_node(child->get_node_id(), copied_node);
+            child = copied_node;
+            if (parent != nullptr) {
+              parent->replace_internal_node_value(key, copied_node);
+            }
+          }
+
           continue;
         }
 

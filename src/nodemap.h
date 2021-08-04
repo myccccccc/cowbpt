@@ -174,6 +174,17 @@ namespace cowbpt {
             return _v[offset-1].second;
         }
 
+        void replace(const Key& k, Value v) {
+            if (size() == 0) {
+                return;
+            }
+            auto offset = find_greater_or_equal(k);
+            if (size() > 1 && offset < size() && !_cmp(k, _v[offset].first) && !_cmp(_v[offset].first, k)) {
+                _v[offset].second = v;
+            }
+            _v[offset-1].second = v;
+        }
+
 
         std::pair<Key, Value> get_middle(const Key& k) {
             auto offset = find_greater_or_equal(k);

@@ -49,6 +49,8 @@ namespace cowbpt
         void erase(const Slice &key);
         Slice get(const Slice &key); // return an empty slice if key do not exist
 
+        NodePtr snaphot();
+
         std::string dump();
 
         NodePtr get_root_node();
@@ -115,6 +117,15 @@ namespace cowbpt
             new_node->set_is_in_memory(true);
 
             // TODO xuexinlei : maintain node statics
+        }
+
+        // replce the old node whose node_id is equal to node_id with the new_node
+        // since the old don't need to be maitained anymore
+        // return status.ok if find the node_id
+        Status replace_node(uint64_t node_id, NodePtr new_node) {
+            //TODO: xinlei : maintain node statics
+            
+            return Status::OK();
         }
 
         void set_snapshot_seq(uint64_t snapshot_seq) {

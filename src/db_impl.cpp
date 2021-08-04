@@ -509,21 +509,22 @@ namespace cowbpt {
 
             last_applied_seq_id = _last_seq_id;
         
-            root = _bpt->get_root_node();
-            // traverse the tree and put serialized pages into internalDB
-            DeepTraverse(root);
-
-            std::string value;
-            leveldb::Status level_status;
-            value.clear();
-            PutFixed64(&value, root->get_node_id());
-            level_status = _internalDB->Put(leveldb::WriteOptions(), RootPageIDKey(), value);
-            if (!level_status.ok()) {
-                LOG(FATAL) << "Fail to update RootPageID at the end of checkpoint: " << root->get_node_id() << " " << level_status.ToString();
-            }
+            root = _bpt->snaphot();
         }
 
+        // traverse the tree and put serialized pages into internalDB
+        DeepTraverse(root);
+
         std::string value;
+        leveldb::Status level_status;
+        value.clear();
+        PutFixed64(&value, root->get_node_id());
+        level_status = _internalDB->Put(leveldb::WriteOptions(), RootPageIDKey(), value);
+        if (!level_status.ok()) {
+            LOG(FATAL) << "Fail to update RootPageID at the end of checkpoint: " << root->get_node_id() << " " << level_status.ToString();
+        }
+        
+
         leveldb::WriteBatch wb;
 
         value.clear();
@@ -541,7 +542,7 @@ namespace cowbpt {
         PutFixed64(&value, last_applied_seq_id);
         wb.Put(LastSeqInLastLogFileKey(), value);
 
-        leveldb::Status level_status = _internalDB->Write(leveldb::WriteOptions(), &wb);
+        level_status = _internalDB->Write(leveldb::WriteOptions(), &wb);
         if (!level_status.ok()) {
             LOG(FATAL) << "Fail to update meta after finished checkpointing: " << level_status.ToString();
             return Status::IOError(level_status.ToString());
