@@ -59,6 +59,10 @@ public:
         _staged = true;
     }
 
+    void un_stage() {
+        _staged = false;
+    }
+
     bool is_staged() {
         return _staged;
     }

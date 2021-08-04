@@ -494,16 +494,23 @@ TEST(DBImplTest, DBImplCheckpoint) {
 
     ASSERT_COWBPT_OK(db->Put(wo, "12", "twelve"));
     ASSERT_COWBPT_OK(db->Put(wo, "13", "thirteen"));
+    ASSERT_COWBPT_OK(db->Put(wo, "14", "14"));
+    ASSERT_COWBPT_OK(db->Put(wo, "15", "15"));
+    ASSERT_COWBPT_OK(db->Put(wo, "16", "16"));
+    ASSERT_COWBPT_OK(db->Put(wo, "17", "17"));
+    ASSERT_COWBPT_OK(db->Put(wo, "18", "18"));
+    ASSERT_COWBPT_OK(db->Put(wo, "19", "19"));
+    ASSERT_COWBPT_OK(db->Put(wo, "20", "20"));
+    ASSERT_COWBPT_OK(db->Delete(wo, "1"));
+    ASSERT_COWBPT_OK(db->Delete(wo, "2"));
 
     delete db;
 
     ASSERT_COWBPT_OK(DB::Open(Options(), testdb_name, &db));
     ReadOptions ro;
     std::string result;
-    ASSERT_COWBPT_OK(db->Get(ReadOptions(), "1", &result));
-    ASSERT_EQ(result, "one");
-    ASSERT_COWBPT_OK(db->Get(ReadOptions(), "2", &result));
-    ASSERT_EQ(result, "two");
+    ASSERT_TRUE(db->Get(ReadOptions(), "1", &result).IsNotFound());
+    ASSERT_TRUE(db->Get(ReadOptions(), "2", &result).IsNotFound());
     ASSERT_COWBPT_OK(db->Get(ReadOptions(), "3", &result));
     ASSERT_EQ(result, "three");
     ASSERT_COWBPT_OK(db->Get(ReadOptions(), "4", &result));
@@ -526,6 +533,21 @@ TEST(DBImplTest, DBImplCheckpoint) {
     ASSERT_EQ(result, "twelve");
     ASSERT_COWBPT_OK(db->Get(ReadOptions(), "13", &result));
     ASSERT_EQ(result, "thirteen");
+    ASSERT_COWBPT_OK(db->Get(ReadOptions(), "14", &result));
+    ASSERT_EQ(result, "14");
+    ASSERT_COWBPT_OK(db->Get(ReadOptions(), "15", &result));
+    ASSERT_EQ(result, "15");
+    ASSERT_COWBPT_OK(db->Get(ReadOptions(), "16", &result));
+    ASSERT_EQ(result, "16");
+    ASSERT_COWBPT_OK(db->Get(ReadOptions(), "17", &result));
+    ASSERT_EQ(result, "17");
+    ASSERT_COWBPT_OK(db->Get(ReadOptions(), "18", &result));
+    ASSERT_EQ(result, "18");
+    ASSERT_COWBPT_OK(db->Get(ReadOptions(), "19", &result));
+    ASSERT_EQ(result, "19");
+    ASSERT_COWBPT_OK(db->Get(ReadOptions(), "20", &result));
+    ASSERT_EQ(result, "20");
+
 
 }
 

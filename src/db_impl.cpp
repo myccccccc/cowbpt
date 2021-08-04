@@ -515,6 +515,10 @@ namespace cowbpt {
         // traverse the tree and put serialized pages into internalDB
         DeepTraverse(root);
 
+        root->lock();
+        root->un_stage();
+        root->unlock();
+
         std::string value;
         leveldb::Status level_status;
         value.clear();
