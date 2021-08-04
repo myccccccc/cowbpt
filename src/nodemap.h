@@ -257,6 +257,9 @@ namespace cowbpt {
     private:
         // find the offset of _v where _v[offset]'s child node may contains Key down below
         size_t find_greater_or_equal(const Key& k) {
+            if (size() == 0) {
+                return 0;
+            }
             assert(size() >= 1);
             // TODO: use binary search
             size_t i = 1;

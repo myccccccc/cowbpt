@@ -211,6 +211,7 @@ public:
         while (GetLengthPrefixedSlice(&input, key)) {
             auto value = new Slice();
             if (!GetLengthPrefixedSlice(&input, value)) {
+                LOG(FATAL) << "fatal" << std::endl;
                 return Status::IOError("Key is not corresponding to any value");
             }
             this->put(*key, *value);
