@@ -118,9 +118,10 @@ namespace cowbpt
             leveldb::WriteOptions options;
             std::string val;
             ptr->serialize(val);
-            auto ret = _internalDB->Put(options, std::to_string(ptr->_node_id), val);
+            auto ret = _internalDB->Put(options, std::to_string(ptr->get_node_id()), val);
             if (!ret.ok()){
                 LOG(FATAL) << "fatal" << std::endl;
+                assert(1 == -1);
                 return;
             }
             ptr->free_kvmap();

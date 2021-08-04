@@ -134,7 +134,7 @@ public:
     // only internal node can call fix_child
     // find the child node by key, fix this node
     virtual void fix_child(const Key& k) = 0;
-_
+
     virtual Status serialize(std::string& result) = 0;
     virtual Status deserialize(const std::string& byte_string) = 0;
     virtual void free_kvmap() = 0;
@@ -278,10 +278,10 @@ public:
     virtual void fix_child(const Key& k) override {
         assert(false);
     }
-    virtual void free_kvmap()
+    virtual void free_kvmap() override
     {
-        _in_memory = false;
-        _kvmap.release();
+        this->_in_memory = false;
+        _kvmap.reset(new KVMap(this->_cmp));
     }
 
 
@@ -486,10 +486,10 @@ public:
         
         assert(false);
     }
-    virtual void free_kvmap()
+    virtual void free_kvmap() override
     {
-        _in_memory = false;
-        _kvmap.release();
+        this->_in_memory = false;
+        _kvmap.reset(new KVMap(this->_cmp));
     }
 
 private:
