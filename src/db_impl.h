@@ -55,6 +55,7 @@ namespace cowbpt {
         }
 
         Status Recover();
+        void start_checkpoint_thread();
         Status recover_meta_from_internalDB();
         Status recover_pages_from_internalDB();
         Status recover_log_files();
