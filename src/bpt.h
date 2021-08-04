@@ -5,6 +5,7 @@
 #include "slice.h"
 #include "node.h"
 #include "leveldb/db.h"
+#include "coding.h"
 
 #ifndef BPT_H
 #define BPT_H
@@ -24,6 +25,9 @@ namespace cowbpt
 
     private:
         Comparator *_user_comparator;
+
+    public:
+        typedef std::shared_ptr<Node<BptComparator>> NodePtr;
 
     public:
         bool operator()(const Slice &x, const Slice &y) const { return _user_comparator->operator()(x, y); }
@@ -68,33 +72,52 @@ namespace cowbpt
               _next_node_id(next_node_id),
               _cmp(user_comparator) {}
 
-        NodePtr fetch(uint64_t page_id)
-        {
+        // need to hold the lock if nptr not null
+        NodePtr fetch(uint64_t page_id, NodePtr nptr = nullptr) {
             leveldb::ReadOptions options;
-            std::string val;
-            auto ret = _internalDB->Get(options, std::to_string(page_id), &val);
-            if (!ret.ok())
-            {
-                LOG(FATAL) << "fatal" << std::endl;
+            std::string page_id_string;
+            PutFixed64(&page_id_string, page_id);
+            std::string value;
+            leveldb::Status level_status = _internalDB->Get(options, page_id_string, &value, _snapshot_seq);
+            if (!level_status.ok()) {
+                LOG(FATAL) << "Fail to find page id: " << page_id << " " << level_status.ToString();
                 return nullptr;
             }
-            NodePtr nptr;
-            if (val[0] == '1')
-            {
-                nptr.reset(new LeafNode<BptComparator>(_cmp));
-                nptr->deserialize(val.substr(1));
+            // var int 32 == 0 means is a leafnode
+            uint32_t nodetype;
+            if(GetVarint32Ptr(value.c_str(), value.c_str()+value.size(), &nodetype) == nullptr) {
+                LOG(FATAL) << "Fail to decode the first varint32 which incating the node type";
             }
-            else
-            {
-            //    nptr.reset(new InternalNode<BptComparator>(_cmp));
-            //    nptr->deserialize(val.substr(1));
+            if (nodetype == 0) {
+                if (nptr == nullptr) nptr.reset(new LeafNode<BptComparator>(_cmp));
+                nptr->deserialize(value);
+                nptr->set_node_id(page_id);
+                nptr->set_is_dirty(false);
+                nptr->set_is_in_memory(true);
+            } else if (nodetype == 1) {
+                if (nptr == nullptr) nptr.reset(new InternalNode<BptComparator>(_cmp));
+                nptr->deserialize(value);
+                nptr->set_node_id(page_id);
+                nptr->set_is_dirty(false);
+                nptr->set_is_in_memory(true);
+            } else {
+                assert(false);
             }
+
+            // TODO xuexinlei : maintain node statics
 
             return nptr;
         }
 
-        void set_snapshot_seq(uint64_t snapshot_seq)
-        {
+        void add_new_node(NodePtr new_node) {
+            new_node->set_node_id(_next_node_id++);
+            new_node->set_is_dirty(true);
+            new_node->set_is_in_memory(true);
+
+            // TODO xuexinlei : maintain node statics
+        }
+
+        void set_snapshot_seq(uint64_t snapshot_seq) {
             _snapshot_seq = snapshot_seq;
         }
 

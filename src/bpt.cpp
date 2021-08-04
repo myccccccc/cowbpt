@@ -9,7 +9,11 @@ namespace cowbpt {
       _root(root),
       _nm(nm) {
         if (_root == nullptr) {
+          LOG(INFO) << "initializing an empty b tree before replaying wal";
           _root.reset(new LeafNode<BptComparator>(_cmp));
+          if(_nm) _nm->add_new_node(_root);
+        } else {
+          LOG(INFO) << "initializing a b tree with checkpoint before replaying wal";
         }
     }
 
@@ -43,11 +47,18 @@ namespace cowbpt {
           int parent_version;
           NodePtr new_child = nullptr;
 
+          child->ref();
+          if (!child->is_in_memory()) {
+            child->lock();
+            if(_nm) _nm->fetch(child->get_node_id(), child);
+            child->unlock();
+          }
           if (child->is_internalnode()) {
             new_child = child->get_internalnode_value(key, parent_version);
           } else {
             res = child->get_leafnode_value(key, parent_version);
           }
+          child->unref();
 
 
           // check parent version
@@ -116,6 +127,9 @@ namespace cowbpt {
           }
         
       while (true) {
+        if (!child->is_in_memory()) {
+          if(_nm) _nm->fetch(child->get_node_id(), child);
+        }
         if (child->need_split()) {
           if (parent == nullptr && !hold_root_lock) { // need split root, retry and get the root lock
             child->unlock();
@@ -124,12 +138,14 @@ namespace cowbpt {
           }
           Slice split_key;
           NodePtr new_child = child->split(split_key);
+          if(_nm) _nm->add_new_node(new_child);
           if (parent != nullptr) { // split non root node
             parent->put(split_key, new_child);
           } else { // split root node
             assert(hold_root_lock);
             NodePtr new_root_node(new InternalNode<BptComparator>(_cmp, child, split_key, new_child));
             new_root_node->lock();
+            if(_nm) _nm->add_new_node(new_root_node);
             _root = new_root_node; 
             parent = new_root_node;
           }
@@ -140,6 +156,9 @@ namespace cowbpt {
           child->unlock();
           child = parent->get_internalnode_value(key);
           child->lock();
+          if (!child->is_in_memory()) {
+            if(_nm) _nm->fetch(child->get_node_id(), child);
+          }
           continue;
         }
         if (hold_root_lock) {
@@ -175,6 +194,9 @@ namespace cowbpt {
           }
     
       while (true) {
+        if (!child->is_in_memory()) {
+          if(_nm) _nm->fetch(child->get_node_id(), child);
+        }
         if (child->need_fix(parent == nullptr)) {
           if (parent == nullptr && !hold_root_lock) { // need fix root, retry and get the root lock
             child->unlock();
@@ -202,6 +224,9 @@ namespace cowbpt {
           child->unlock();
           child = parent->get_internalnode_value(key);
           child->lock();
+          if (!child->is_in_memory()) {
+            if(_nm) _nm->fetch(child->get_node_id(), child);
+          }
           continue;
         }
 

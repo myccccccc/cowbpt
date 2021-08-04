@@ -17,12 +17,16 @@ namespace cowbpt {
           _cmp(cmp) {
         }
     public:
+        LeafNodeMap() = delete;
         LeafNodeMap(Comparator cmp) 
         : _v(),
           _cmp(cmp) {
         }
         size_t size() {
             return _v.size();
+        }
+        ArrayMap* get_kv_array() {
+            return &_v;
         }
         void put(const Key& k, const Value& v) {
             auto offset = find_greater_or_equal(k);
@@ -115,6 +119,9 @@ namespace cowbpt {
         }
     public:
         InternalNodeMap() = delete;
+        InternalNodeMap(Comparator cmp)
+        : _v(),
+          _cmp(cmp) {}
         virtual ~InternalNodeMap() = default;
         InternalNodeMap(Comparator cmp, Value v1, 
                         const Key& k2, Value v2)
@@ -133,6 +140,9 @@ namespace cowbpt {
                 res.push_back(p.second);
             }
             return res;
+        }
+        ArrayMap* get_kv_array() {
+            return &_v;
         }
 
         void put(const Key& k, const Value& v) {
@@ -249,6 +259,9 @@ namespace cowbpt {
     private:
         // find the offset of _v where _v[offset]'s child node may contains Key down below
         size_t find_greater_or_equal(const Key& k) {
+            if (size() == 0) {
+                return 0;
+            }
             assert(size() >= 1);
             // TODO: use binary search
             size_t i = 1;
