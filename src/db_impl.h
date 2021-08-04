@@ -33,12 +33,12 @@ namespace cowbpt {
         Status Get(const ReadOptions& options, const Slice& key,
                     std::string* value) override;
         Status ManualCheckPoint() override;
+        void DeepTraverse(const Bpt::NodePtr& root);
         // Iterator* NewIterator(const ReadOptions&) override;
         // const Snapshot* GetSnapshot() override;
         // void ReleaseSnapshot(const Snapshot* snapshot) override;
     
     private:
-        typedef Bpt::NodePtr NodePtr;
 
         // Return the last sequence number.
         uint64_t LastSequence() const { return _last_seq_id; }
@@ -59,6 +59,7 @@ namespace cowbpt {
         void RemoveObsoleteFiles();
     
     private:
+        typedef Bpt::NodePtr NodePtr;
         friend class DB;
 
         Env* _env;

@@ -26,6 +26,9 @@ namespace cowbpt
         Comparator *_user_comparator;
 
     public:
+        typedef std::shared_ptr<Node<BptComparator>> NodePtr;
+
+    public:
         bool operator()(const Slice &x, const Slice &y) const { return _user_comparator->operator()(x, y); }
     };
 

@@ -5,6 +5,7 @@
 #include "slice.h"
 #include "nodemap.h"
 #include "status.h"
+#include "coding.h"
 #include "gflags/gflags.h"
 
 
@@ -192,9 +193,30 @@ public:
         return std::vector<NodePtr>();
     }
     virtual Status serialize(std::string& result) override {
+        PutFixed32(&result, 0);
+        auto values = _kvmap->get_kv_array();
+        for (auto i = values->begin(); i != values->end(); i++) {
+            // Serialize key length
+            PutLengthPrefixedSlice(&result, (*i).first);
+            // Serialize value length
+            PutLengthPrefixedSlice(&result, (*i).second);
+        }
+
         return Status::OK();
     }
+
     virtual Status deserialize(const std::string& byte_string) override {
+        Slice input = byte_string;
+        auto key = new Slice();
+        while (GetLengthPrefixedSlice(&input, key)) {
+            auto value = new Slice();
+            if (!GetLengthPrefixedSlice(&input, value)) {
+                LOG(ERROR) << "Deserialize error" << std::endl;
+                return Status::IOError("Key is not corresponding to any value");
+            }
+            this->put(*key, *value);
+        }
+
         return Status::OK();
     }
     virtual std::string dump() override {
@@ -344,6 +366,10 @@ private:
     typedef std::shared_ptr<KVMap> KVMapPtr;
 public:
     InternalNode() = delete;
+    InternalNode(Comparator cmp)
+    : InternalNode(std::make_shared<KVMap>(cmp), cmp) {
+    }
+
     InternalNode(Comparator cmp, NodePtr v1, const Key& k2, NodePtr v2) 
     : InternalNode(std::make_shared<KVMap>(cmp, v1, k2, v2), cmp){
 
@@ -354,9 +380,41 @@ public:
         return _kvmap->get_values();
     }
     virtual Status serialize(std::string& result) override {
+        PutFixed32(&result, 1);
+        auto values = _kvmap->get_kv_array();
+        for (auto i = values->begin(); i != values->end(); i++) {
+            // Serialize key length
+            PutLengthPrefixedSlice(&result, (*i).first);
+            // Serialize value length
+            if (((*i).second)->is_leafnode()) {
+                PutFixed32(&result, 0);
+            } else {
+                PutFixed32(&result, 1);
+            }
+            PutFixed64(&result, ((*i).second)->get_node_id());
+        }
+
         return Status::OK();
     }
     virtual Status deserialize(const std::string& byte_string) override {
+        Slice input = byte_string;
+        auto key = new Slice();
+        while (GetLengthPrefixedSlice(&input, key)) {
+            uint32_t node_type;
+            GetVarint32(&input, &node_type);
+            std::shared_ptr<Node<Comparator>> node = nullptr;
+            if (node_type == 0) {
+                node.reset(new LeafNode<Comparator>(Node<Comparator>::_cmp));
+            } else {
+                node.reset(new InternalNode<Comparator>(Node<Comparator>::_cmp));
+            }
+            uint64_t node_id;
+            GetVarint64(&input, &node_id);
+            node->set_node_id(node_id);
+
+            this->put(*key, node);
+        }
+
         return Status::OK();
     }
 
