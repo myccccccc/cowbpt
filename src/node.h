@@ -151,7 +151,7 @@ public:
 
     virtual Status serialize(std::string& result) = 0;
     virtual Status deserialize(const std::string& byte_string) = 0;
-
+    virtual void free_kvmap() = 0;
     // TODO: copy
 
 protected:
@@ -316,6 +316,12 @@ public:
     virtual void fix_child(const Key& k) override {
         assert(false);
     }
+    virtual void free_kvmap() override
+    {
+        this->_in_memory = false;
+        _kvmap.reset(new KVMap(this->_cmp));
+    }
+
 
 private:
     LeafNode(KVMapPtr p, Comparator cmp)
@@ -555,6 +561,11 @@ public:
         }
         
         assert(false);
+    }
+    virtual void free_kvmap() override
+    {
+        this->_in_memory = false;
+        _kvmap.reset(new KVMap(this->_cmp));
     }
 
 private:
