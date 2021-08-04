@@ -503,7 +503,10 @@ namespace cowbpt {
             leveldb::Slice key = str_key;
             leveldb::Slice value = str_value;
             auto writeOptions = new leveldb::WriteOptions();
-            _internalDB->Put(*writeOptions, key, value);
+            leveldb::Status status = _internalDB->Put(*writeOptions, key, value);
+            if (!status.ok()) {
+                LOG(ERROR) << "Fail to put to internalDB while deserializing";
+            }
         }
 
         if (root->is_internalnode()) {
