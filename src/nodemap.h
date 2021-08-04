@@ -17,6 +17,7 @@ namespace cowbpt {
           _cmp(cmp) {
         }
     public:
+        LeafNodeMap() = delete;
         LeafNodeMap(Comparator cmp) 
         : _v(),
           _cmp(cmp) {
@@ -117,9 +118,10 @@ namespace cowbpt {
           _cmp(cmp) {
         }
     public:
+        InternalNodeMap() = delete;
         InternalNodeMap(Comparator cmp)
         : _v(),
-        _cmp(cmp) {}
+          _cmp(cmp) {}
         virtual ~InternalNodeMap() = default;
         InternalNodeMap(Comparator cmp, Value v1, 
                         const Key& k2, Value v2)

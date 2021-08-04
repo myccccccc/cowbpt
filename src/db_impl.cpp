@@ -6,6 +6,7 @@
 #include "glog/logging.h"
 #include "coding.h"
 #include "log_reader.h"
+#include "leveldb/write_batch.h"
 
 #include <iostream>
 #include <condition_variable>
@@ -158,6 +159,15 @@ namespace cowbpt {
             return Status::Corruption(level_status.ToString());
         }
 
+        value.clear();
+        level_status = _internalDB->Get(leveldb::ReadOptions(), NextNodeIDKey(), &value);
+        if (level_status.ok()) {
+            _max_node_id_in_internalDB = DecodeFixed64(value.c_str());
+        } else if (!level_status.IsNotFound()) {
+            LOG(ERROR) << "Error when reading NextNodeID from internalDB: " << level_status.ToString();
+            return Status::Corruption(level_status.ToString());
+        }
+
         // TODO: recover others
 
         LOG(INFO) << "Succeed to recover meta from internal db";
@@ -167,11 +177,8 @@ namespace cowbpt {
     Status DBImpl::recover_pages_from_internalDB() {
 
         std::string value;
-        leveldb::Status level_status = _internalDB->Get(leveldb::ReadOptions(), NextNodeIDKey(), &value);
-        uint64_t next_node_id = 0;
-        if (level_status.ok()) {
-            next_node_id = DecodeFixed64(value.c_str());
-        }
+        leveldb::Status level_status;
+        uint64_t next_node_id  = _max_node_id_in_internalDB + 1;
 
         if (_last_checkpoint_snapshot_seq == 0) {
             LOG(INFO) << "There are no previous checkpoint, skip recovering pages";
@@ -194,6 +201,7 @@ namespace cowbpt {
         }
 
         NodePtr root = _nm->fetch(root_page_id);
+        root->set_node_id(root_page_id);
         _bpt = new Bpt(_DB_options.comparator, _nm, root);
         
         return Status::OK();
@@ -306,7 +314,8 @@ namespace cowbpt {
       _DB_options(raw_options),
       _internalDB_options(),
       _tmp_batch(new WriteBatch),
-      _last_checkpoint_snapshot_seq(0) {
+      _last_checkpoint_snapshot_seq(0),
+      _max_node_id_in_internalDB(0) {
           _internalDB_options.create_if_missing = _DB_options.create_if_missing;
           _internalDB_options.error_if_exists = _DB_options.error_if_exists;
     }
@@ -478,13 +487,69 @@ namespace cowbpt {
     }
 
     Status DBImpl::ManualCheckPoint() {
-        // TODO: no need to hold the lock that lang
-        std::lock_guard<std::mutex> lck(_mutex);
+        WritableFilePtr new_logfile;
+        Status s = _env->NewWritableFile(LogFileName(_dbname, _logfile_number+1), new_logfile);
+        if (!s.ok()) {
+            LOG(ERROR) << "Fail to create new wal file before doing check point " << s.string();
+            return s;
+        }
 
-        auto root = _bpt->get_root_node();
+        uint64_t last_applied_seq_id;
+        NodePtr root;
+
+        {
+            std::lock_guard<std::mutex> lck(_mutex);
+
+            _logfile = new_logfile;
+            delete _log;
+            _log = new log::Writer(_logfile);
+            _logfile_number++;
+
+            last_applied_seq_id = _last_seq_id;
         
-        // traverse the tree and put serialized pages into internalDB
-        DeepTraverse(root);
+            root = _bpt->get_root_node();
+            // traverse the tree and put serialized pages into internalDB
+            DeepTraverse(root);
+
+            std::string value;
+            leveldb::Status level_status;
+            value.clear();
+            PutFixed64(&value, root->get_node_id());
+            level_status = _internalDB->Put(leveldb::WriteOptions(), RootPageIDKey(), value);
+            if (!level_status.ok()) {
+                LOG(FATAL) << "Fail to update RootPageID at the end of checkpoint: " << root->get_node_id() << " " << level_status.ToString();
+            }
+        }
+
+        std::string value;
+        leveldb::WriteBatch wb;
+
+        value.clear();
+        uint64_t new_checkpoint_snapshot_seq = 0;
+        new_checkpoint_snapshot_seq = _internalDB->GetDurableSnapshot();
+        PutFixed64(&value, new_checkpoint_snapshot_seq);
+        wb.Put(LastCheckpointSnapshotSeqKey(), value);
+
+        value.clear();
+        _last_obsolete_logfile_number = _logfile_number - 1;
+        PutFixed64(&value, _last_obsolete_logfile_number);
+        wb.Put(LogFileNumberKey(), value);
+
+        value.clear();
+        PutFixed64(&value, last_applied_seq_id);
+        wb.Put(LastSeqInLastLogFileKey(), value);
+
+        leveldb::Status level_status = _internalDB->Write(leveldb::WriteOptions(), &wb);
+        if (!level_status.ok()) {
+            LOG(FATAL) << "Fail to update meta after finished checkpointing: " << level_status.ToString();
+            return Status::IOError(level_status.ToString());
+        }
+
+        _internalDB->ReleaseDurableSnapshot(_last_checkpoint_snapshot_seq);
+        _last_checkpoint_snapshot_seq = new_checkpoint_snapshot_seq;
+
+        RemoveObsoleteFiles();
+
         
         return Status::OK();
     }
@@ -496,16 +561,21 @@ namespace cowbpt {
 
         // Serialize dirty page and flush into internalDB
         if (root->is_dirty()) {
-            std::string str_key, str_value;
-            PutFixed64(&str_key, root->get_node_id());
-            root->serialize(str_value);
-
-            leveldb::Slice key = str_key;
-            leveldb::Slice value = str_value;
-            auto writeOptions = new leveldb::WriteOptions();
-            leveldb::Status status = _internalDB->Put(*writeOptions, key, value);
-            if (!status.ok()) {
-                LOG(FATAL) << "Fail to put to internalDB while deserializing";
+            leveldb::WriteBatch wb;
+            if (root->get_node_id() > _max_node_id_in_internalDB) {
+                std::string value;
+                PutFixed64(&value, root->get_node_id() + 1);
+                wb.Put(NextNodeIDKey(), value);
+                _max_node_id_in_internalDB = root->get_node_id();
+            }
+            std::string key;
+            std::string value;
+            PutFixed64(&key, root->get_node_id());
+            assert(root->serialize(value).ok());
+            wb.Put(key, value);
+            leveldb::Status level_status = _internalDB->Write(leveldb::WriteOptions(), &wb);
+            if (!level_status.ok()) {
+                LOG(FATAL) << "Fail to flush page: " << root->get_node_id() << " " << level_status.ToString();
             }
         }
 

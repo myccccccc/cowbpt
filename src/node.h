@@ -202,7 +202,6 @@ public:
             // Serialize value length
             PutLengthPrefixedSlice(&result, (*i).second);
         }
-
         return Status::OK();
     }
 
@@ -397,7 +396,6 @@ public:
             }
             PutVarint64(&result, ((*i).second)->get_node_id());
         }
-
         return Status::OK();
     }
     virtual Status deserialize(const std::string& byte_string) override {

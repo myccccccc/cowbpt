@@ -5,6 +5,7 @@
 #include "slice.h"
 #include "node.h"
 #include "leveldb/db.h"
+#include "coding.h"
 
 #ifndef BPT_H
 #define BPT_H
@@ -71,33 +72,38 @@ namespace cowbpt
               _next_node_id(next_node_id),
               _cmp(user_comparator) {}
 
-        NodePtr fetch(uint64_t page_id)
-        {
+        NodePtr fetch(uint64_t page_id) {
             leveldb::ReadOptions options;
-            std::string val;
-            auto ret = _internalDB->Get(options, std::to_string(page_id), &val);
-            if (!ret.ok())
-            {
-                LOG(FATAL) << "fatal" << std::endl;
+            std::string page_id_string;
+            PutFixed64(&page_id_string, page_id);
+            std::string value;
+            leveldb::Status level_status = _internalDB->Get(options, page_id_string, &value, _snapshot_seq);
+            if (!level_status.ok()) {
+                LOG(FATAL) << "Fail to find page id: " << page_id << " " << level_status.ToString();
                 return nullptr;
             }
+            if (value.size() < 12) {
+                LOG(FATAL) << "Page size too small, page id: " << page_id << " size: " << value.size();
+            }
             NodePtr nptr;
-            if (val[0] == '1')
-            {
+
+            // fixed int 32 == 0 means is a leafnode
+            if (DecodeFixed32(value.c_str()) == 0) {
                 nptr.reset(new LeafNode<BptComparator>(_cmp));
-                nptr->deserialize(val.substr(1));
+                nptr->deserialize(value.substr(4));
+                nptr->set_node_id(page_id);
+            } else {
+                nptr.reset(new InternalNode<BptComparator>(_cmp));
+                nptr->deserialize(value.substr(4));
+                nptr->set_node_id(page_id);
             }
-            else
-            {
-            //    nptr.reset(new InternalNode<BptComparator>(_cmp));
-            //    nptr->deserialize(val.substr(1));
-            }
+
+            // TODO xuexinlei : maintain node statics
 
             return nptr;
         }
 
-        void set_snapshot_seq(uint64_t snapshot_seq)
-        {
+        void set_snapshot_seq(uint64_t snapshot_seq) {
             _snapshot_seq = snapshot_seq;
         }
 

@@ -9,7 +9,10 @@ namespace cowbpt {
       _root(root),
       _nm(nm) {
         if (_root == nullptr) {
+          LOG(INFO) << "initializing an empty b tree before replaying wal";
           _root.reset(new LeafNode<BptComparator>(_cmp));
+        } else {
+          LOG(INFO) << "initializing a b tree with checkpoint before replaying wal";
         }
     }
 

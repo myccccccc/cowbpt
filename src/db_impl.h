@@ -89,6 +89,8 @@ namespace cowbpt {
         WriteBatch* _tmp_batch;
         
         uint64_t _last_checkpoint_snapshot_seq;
+
+        uint64_t _max_node_id_in_internalDB;
     };
 }
 #endif

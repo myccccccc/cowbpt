@@ -470,5 +470,34 @@ TEST(DBImplTest, DBImplRandomCurrentCRUD) {
 
 }
 
+TEST(DBImplTest, DBImplCheckpoint) {
+    testdb_name = "DBImplCheckpoint";
+    DestroyDB(testdb_name, Options());
+    DB* db;
+    ASSERT_COWBPT_OK(DB::Open(Options(), testdb_name, &db));
+
+    WriteOptions wo;
+    ASSERT_COWBPT_OK(db->Put(wo, "1", "one"));
+    ASSERT_COWBPT_OK(db->Put(wo, "1", "one"));
+    ASSERT_COWBPT_OK(db->Put(wo, "2", "two"));
+    ASSERT_COWBPT_OK(db->Put(wo, "3", "three"));
+    ASSERT_COWBPT_OK(db->Put(wo, "4", "four"));
+    ASSERT_COWBPT_OK(db->Put(wo, "5", "five"));
+    ASSERT_COWBPT_OK(db->Put(wo, "6", "six"));
+    ASSERT_COWBPT_OK(db->Put(wo, "7", "seven"));
+    ASSERT_COWBPT_OK(db->Put(wo, "8", "eight"));
+    ASSERT_COWBPT_OK(db->Put(wo, "9", "nine"));
+    ASSERT_COWBPT_OK(db->Put(wo, "10", "ten"));
+    ASSERT_COWBPT_OK(db->Put(wo, "11", "eleven"));
+
+    ASSERT_COWBPT_OK(db->ManualCheckPoint());
+
+    ASSERT_COWBPT_OK(db->Put(wo, "12", "twelve"));
+    ASSERT_COWBPT_OK(db->Put(wo, "13", "thirthen"));
+
+    delete db;
+
+    ASSERT_COWBPT_OK(DB::Open(Options(), testdb_name, &db));
+}
 
 } 
