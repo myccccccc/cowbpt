@@ -325,5 +325,67 @@ TEST(NodeTest, InternalNodeCRUD) {
   //              |n leaf 0.7, 0.8, 0.9 | n4 leaf 1, 2, 3, 4                                | n5 leaf 5, 6 | n6 leaf 7, 8, 9
   // std::cout << n8->dump() << std::endl;
 
+}
+
+TEST(NodeTest, LeafNodeSerialize) {
+    std::shared_ptr<Node<SliceComparator>> n(new LeafNode<SliceComparator>(cmp));
+    n->put("1", "one");
+    n->put("2", "two");
+    n->put("3", "three");
+    n->put("4", "four");
+    n->put("5", "five");
+    std::string result;
+    n->serialize(result);
+
+    Slice input = result;
+    uint32_t node_type;
+    GetVarint32(&input, &node_type);
+    EXPECT_EQ(node_type, 0);
+
+    std::shared_ptr<Node<SliceComparator>> n2(new LeafNode<SliceComparator>(cmp));
+    auto status = n2->deserialize(result);
+    EXPECT_TRUE(status.ok());
+    int node_version;
+    EXPECT_TRUE(equal(n2->get_leafnode_value("1", node_version), "one"));
+    EXPECT_TRUE(equal(n2->get_leafnode_value("2", node_version), "two"));
+    EXPECT_TRUE(equal(n2->get_leafnode_value("3", node_version), "three"));
+    EXPECT_TRUE(equal(n2->get_leafnode_value("4", node_version), "four"));
+    EXPECT_TRUE(equal(n2->get_leafnode_value("5", node_version), "five"));
+}
+
+TEST(NodeTest, InternalNodeSerialize) {
+    std::shared_ptr<Node<SliceComparator>> n1(new InternalNode<SliceComparator>(cmp));
+    std::shared_ptr<Node<SliceComparator>> leaf1(new LeafNode<SliceComparator>(cmp));
+    std::shared_ptr<Node<SliceComparator>> leaf2(new LeafNode<SliceComparator>(cmp));
+    std::shared_ptr<Node<SliceComparator>> leaf3(new LeafNode<SliceComparator>(cmp));
+    std::shared_ptr<Node<SliceComparator>> leaf4(new LeafNode<SliceComparator>(cmp));
+    leaf1->set_node_id(1);
+    leaf2->set_node_id(2);
+    leaf3->set_node_id(3);
+    leaf4->set_node_id(4);
+    n1->put("1", leaf1);
+    n1->put("2", leaf2);
+    n1->put("3", leaf3);
+    n1->put("4", leaf4);
+    std::string result;
+    n1->serialize(result);
+
+    Slice input = result;
+    uint32_t node_type;
+    GetVarint32(&input, &node_type);
+    EXPECT_EQ(node_type, 1);
+
+    std::shared_ptr<Node<SliceComparator>> n2(new InternalNode<SliceComparator>(cmp));
+    auto status = n2->deserialize(result);
+    EXPECT_TRUE(status.ok());
+
+    EXPECT_EQ(n2->get_internalnode_value("1")->get_node_id(),
+              n1->get_internalnode_value("1")->get_node_id());
+    EXPECT_EQ(n2->get_internalnode_value("2")->get_node_id(),
+              n1->get_internalnode_value("2")->get_node_id());
+    EXPECT_EQ(n2->get_internalnode_value("3")->get_node_id(),
+              n1->get_internalnode_value("3")->get_node_id());
+    EXPECT_EQ(n2->get_internalnode_value("4")->get_node_id(),
+              n1->get_internalnode_value("4")->get_node_id());
 
 }
