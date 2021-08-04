@@ -1,6 +1,8 @@
 #include "swap_manager.h"
 using namespace cowbpt;
 
+namespace cowbpt{
+
 Listnode::Listnode(uint64_t id)
 {
     page_id = id;
@@ -11,10 +13,11 @@ LRU_swap_manager::LRU_swap_manager(){
     head = std::make_shared<Listnode>();
 }
 
-uint64_t LRU_swap_manager::get_swap_node_id(uint64_t page_id){
+uint64_t LRU_swap_manager::get_swap_node_id(){
+    std::lock_guard<std::mutex> lck(_mutex);
     assert(head->next != nullptr);
     uint64_t res = (head->next)->page_id;
-    pop(page_id);
+    pop(res);
     return res;
 }
 
@@ -30,7 +33,6 @@ void LRU_swap_manager::visit_node(uint64_t page_id){
 }
 
 void LRU_swap_manager::insert(uint64_t id){
-    std::lock_guard<std::mutex> lck(_mutex);
     ListnodePtr t = std::make_shared<Listnode>(id);
     LRU_index[t->page_id] = t;
     t->pre = head;
@@ -47,4 +49,6 @@ void LRU_swap_manager::pop(uint64_t id){
     (t->pre)->next = t -> next;
     if(t->next != nullptr)
         (t->next)->pre = t -> pre;
+}
+
 }

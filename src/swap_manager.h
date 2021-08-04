@@ -23,7 +23,7 @@ namespace cowbpt{
 
         virtual ~swap_manager() = default;
         virtual void visit_node(uint64_t page_id) = 0;
-        virtual uint64_t get_swap_node_id(uint64_t page_id) = 0;
+        virtual uint64_t get_swap_node_id() = 0;
     };
 
 
@@ -33,7 +33,7 @@ namespace cowbpt{
         LRU_swap_manager();
         virtual ~LRU_swap_manager() = default;
 
-        virtual uint64_t get_swap_node_id(uint64_t page_id);
+        virtual uint64_t get_swap_node_id();
         virtual void visit_node(uint64_t page_id);
     private:
         void insert(uint64_t page_id);

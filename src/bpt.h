@@ -1,5 +1,7 @@
 #include <memory>
+#include <map>
 
+#include "swap_manager.h"
 #include "comparator.h"
 #include "glog/logging.h"
 #include "slice.h"
@@ -66,7 +68,9 @@ namespace cowbpt
             : _internalDB(internalDB),
               _snapshot_seq(snapshot_seq),
               _next_node_id(next_node_id),
-              _cmp(user_comparator) {}
+              _cmp(user_comparator) {
+                _swap_manager = std::make_shared<LRU_swap_manager>();
+              }
 
         NodePtr fetch(uint64_t page_id)
         {
@@ -97,12 +101,36 @@ namespace cowbpt
         {
             _snapshot_seq = snapshot_seq;
         }
+        void visit_node(uint64_t page_id){
+            _swap_manager->visit_node(page_id);
+        }
+        void swap_node(){
+            uint64_t swap_node_id = _swap_manager->get_swap_node_id();
+            assert(PageID2NodePtr.count(swap_node_id) != 0);
+            NodePtr p = PageID2NodePtr[swap_node_id];
+            p->lock();
+            flush(p);
+            p->unlock();
+        }
 
     private:
+        void flush(NodePtr ptr){
+            leveldb::WriteOptions options;
+            std::string val;
+            ptr->serialize(val);
+            auto ret = _internalDB->Put(options, std::to_string(ptr->_node_id), val);
+            if (!ret.ok()){
+                LOG(FATAL) << "fatal" << std::endl;
+                return;
+            }
+            ptr->free_kvmap();
+        }
         leveldb::DB *_internalDB;
         uint64_t _snapshot_seq;
         uint64_t _next_node_id;
         BptComparator _cmp;
+        std::map<uint64_t, NodePtr> PageID2NodePtr;
+        std::shared_ptr<swap_manager> _swap_manager;
     };
 }
 
