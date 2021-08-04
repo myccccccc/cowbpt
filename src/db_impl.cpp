@@ -201,7 +201,6 @@ namespace cowbpt {
         }
 
         NodePtr root = _nm->fetch(root_page_id);
-        root->set_node_id(root_page_id);
         _bpt = new Bpt(_DB_options.comparator, _nm, root);
         
         return Status::OK();

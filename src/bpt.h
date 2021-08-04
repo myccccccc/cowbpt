@@ -72,7 +72,8 @@ namespace cowbpt
               _next_node_id(next_node_id),
               _cmp(user_comparator) {}
 
-        NodePtr fetch(uint64_t page_id) {
+        // need to hold the lock if nptr not null
+        NodePtr fetch(uint64_t page_id, NodePtr nptr = nullptr) {
             leveldb::ReadOptions options;
             std::string page_id_string;
             PutFixed64(&page_id_string, page_id);
@@ -85,22 +86,33 @@ namespace cowbpt
             if (value.size() < 12) {
                 LOG(FATAL) << "Page size too small, page id: " << page_id << " size: " << value.size();
             }
-            NodePtr nptr;
 
             // fixed int 32 == 0 means is a leafnode
             if (DecodeFixed32(value.c_str()) == 0) {
-                nptr.reset(new LeafNode<BptComparator>(_cmp));
-                nptr->deserialize(value.substr(4));
+                if (nptr == nullptr) nptr.reset(new LeafNode<BptComparator>(_cmp));
+                nptr->deserialize(value);
                 nptr->set_node_id(page_id);
+                nptr->set_is_dirty(false);
+                nptr->set_is_in_memory(true);
             } else {
-                nptr.reset(new InternalNode<BptComparator>(_cmp));
-                nptr->deserialize(value.substr(4));
+                if (nptr == nullptr) nptr.reset(new InternalNode<BptComparator>(_cmp));
+                nptr->deserialize(value);
                 nptr->set_node_id(page_id);
+                nptr->set_is_dirty(false);
+                nptr->set_is_in_memory(true);
             }
 
             // TODO xuexinlei : maintain node statics
 
             return nptr;
+        }
+
+        void add_new_node(NodePtr new_node) {
+            new_node->set_node_id(_next_node_id++);
+            new_node->set_is_dirty(true);
+            new_node->set_is_in_memory(true);
+
+            // TODO xuexinlei : maintain node statics
         }
 
         void set_snapshot_seq(uint64_t snapshot_seq) {

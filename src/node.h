@@ -67,6 +67,14 @@ public:
         _node_id = node_id;
     }
 
+    void set_is_dirty(bool is_dirty) {
+        _dirty = is_dirty;
+    }
+
+    void set_is_in_memory (bool is_in_memory) {
+        _in_memory = is_in_memory;
+    }
+
     bool is_dirty() {
         return _dirty;
     }
@@ -74,6 +82,10 @@ public:
     bool is_in_memory() {
         return _in_memory;
     }
+
+    void ref() {lock(); _ref_count++; unlock();}
+
+    void unref() {lock(); _ref_count--; unlock();}
 
     // if this is a leaf node, panic
     virtual std::vector<NodePtr> get_child_nodes() = 0;
@@ -149,6 +161,7 @@ protected:
     uint64_t _node_id = 0;
     bool _dirty = false;
     bool _in_memory = false;
+    uint64_t _ref_count = 0;
 
 protected:
     void increase_version() {
