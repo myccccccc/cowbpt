@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 
 project(cowbpt)
     
-set(CMAKE_CXX_FLAGS   "-std=c++11 -g -Wall")             
+set(CMAKE_CXX_FLAGS   "-std=c++11 -g ")             
 set(CMAKE_CXX_FLAGS_DEBUG   "-O0" )             
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG " ) 
 

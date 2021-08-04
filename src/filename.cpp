@@ -126,4 +126,10 @@ bool ConsumeDecimalNumber(Slice* in, uint64_t* val) {
 std::string LogFileNumberKey() { return "LOGFILENUMBER"; }
 
 std::string LastSeqInLastLogFileKey() { return "LastSeqInLastLogFile"; }
+
+std::string LastCheckpointSnapshotSeqKey() { return "LastCheckpointSnapshotSeq"; }
+
+std::string RootPageIDKey() { return "RootPageID"; }
+
+std::string NextNodeIDKey() {return "NextNodeID"; }
 } 
