@@ -83,23 +83,25 @@ namespace cowbpt
                 LOG(FATAL) << "Fail to find page id: " << page_id << " " << level_status.ToString();
                 return nullptr;
             }
-            if (value.size() < 12) {
-                LOG(FATAL) << "Page size too small, page id: " << page_id << " size: " << value.size();
+            // var int 32 == 0 means is a leafnode
+            uint32_t nodetype;
+            if(GetVarint32Ptr(value.c_str(), value.c_str()+value.size(), &nodetype) == nullptr) {
+                LOG(FATAL) << "Fail to decode the first varint32 which incating the node type";
             }
-
-            // fixed int 32 == 0 means is a leafnode
-            if (DecodeFixed32(value.c_str()) == 0) {
+            if (nodetype == 0) {
                 if (nptr == nullptr) nptr.reset(new LeafNode<BptComparator>(_cmp));
                 nptr->deserialize(value);
                 nptr->set_node_id(page_id);
                 nptr->set_is_dirty(false);
                 nptr->set_is_in_memory(true);
-            } else {
+            } else if (nodetype == 1) {
                 if (nptr == nullptr) nptr.reset(new InternalNode<BptComparator>(_cmp));
                 nptr->deserialize(value);
                 nptr->set_node_id(page_id);
                 nptr->set_is_dirty(false);
                 nptr->set_is_in_memory(true);
+            } else {
+                assert(false);
             }
 
             // TODO xuexinlei : maintain node statics
