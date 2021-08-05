@@ -9,6 +9,7 @@
 
 #include "db.h"
 #include "comparator.h"
+#include "db_impl.h"
 
 using namespace cowbpt;
 
@@ -551,4 +552,66 @@ TEST(DBImplTest, DBImplCheckpoint) {
 
 }
 
+
+TEST(DBImplTest, DBImplIterator) {
+    testdb_name = "DBImplIterator";
+    DestroyDB(testdb_name, Options());
+    DB* db;
+    ASSERT_COWBPT_OK(DB::Open(Options(), testdb_name, &db));
+
+    auto cnm = static_cast<DBImpl*>(db);
+    // std::cout << cnm->_bpt->dump();
+
+    WriteOptions wo;
+    ASSERT_COWBPT_OK(db->Put(wo, "1", "one"));
+    // std::cout << cnm->_bpt->dump();
+    ASSERT_COWBPT_OK(db->Put(wo, "1", "one"));
+    // std::cout << cnm->_bpt->dump();
+    ASSERT_COWBPT_OK(db->Put(wo, "2", "two"));
+    // std::cout << cnm->_bpt->dump();
+    ASSERT_COWBPT_OK(db->Put(wo, "3", "three"));
+    // std::cout << cnm->_bpt->dump();
+    ASSERT_COWBPT_OK(db->Put(wo, "4", "four"));
+    // std::cout << cnm->_bpt->dump();
+    ASSERT_COWBPT_OK(db->Put(wo, "5", "five"));
+    // std::cout << cnm->_bpt->dump();
+    ASSERT_COWBPT_OK(db->Put(wo, "6", "six"));
+    // std::cout << cnm->_bpt->dump();
+    ASSERT_COWBPT_OK(db->Put(wo, "7", "seven"));
+    // std::cout << cnm->_bpt->dump();
+    ASSERT_COWBPT_OK(db->Put(wo, "8", "eight"));
+    ASSERT_COWBPT_OK(db->Put(wo, "9", "nine"));
+    ASSERT_COWBPT_OK(db->Put(wo, "10", "ten"));
+    ASSERT_COWBPT_OK(db->Put(wo, "11", "eleven"));
+
+    // auto cnm = static_cast<DBImpl*>(db);
+    // std::cout << cnm->_bpt->dump();
+
+    auto iter = db->NewIterator(ReadOptions());
+    iter->SeekToFirst();
+    ASSERT_EQ(iter->key().string(), "1");
+    iter->Next();
+    ASSERT_EQ(iter->key().string(), "10");
+    iter->Next();
+    ASSERT_EQ(iter->key().string(), "11");
+    iter->Next();
+    ASSERT_EQ(iter->key().string(), "2");
+    iter->Next();
+    ASSERT_EQ(iter->key().string(), "3");
+    iter->Next();
+    ASSERT_EQ(iter->key().string(), "4");
+    iter->Next();
+    ASSERT_EQ(iter->key().string(), "5");
+    iter->Next();
+    ASSERT_EQ(iter->key().string(), "6");
+    iter->Next();
+    ASSERT_EQ(iter->key().string(), "7");
+    iter->Next();
+    ASSERT_EQ(iter->key().string(), "8");
+    iter->Next();
+    ASSERT_EQ(iter->key().string(), "9");
+    ASSERT_EQ(iter->value().string(), "nine");
+    iter->Next();
+    ASSERT_FALSE(iter->Valid());
+}
 } 

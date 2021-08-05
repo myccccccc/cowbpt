@@ -7,6 +7,7 @@
 
 #include "options.h"
 #include "status.h"
+#include "iterator.h"
 
 namespace cowbpt {
 
@@ -70,13 +71,13 @@ class DB {
   // manually take a checkponit on the inmemory bpt, will drop the previous log after finished checkointing
   virtual Status ManualCheckPoint() = 0;
 
-  // // Return a heap-allocated iterator over the contents of the database.
-  // // The result of NewIterator() is initially invalid (caller must
-  // // call one of the Seek methods on the iterator before using it).
-  // //
-  // // Caller should delete the iterator when it is no longer needed.
-  // // The returned iterator should be deleted before this db is deleted.
-  // virtual Iterator* NewIterator(const ReadOptions& options) = 0;
+  // Return a heap-allocated iterator over the contents of the database.
+  // The result of NewIterator() is initially invalid (caller must
+  // call one of the Seek methods on the iterator before using it).
+  //
+  // Caller should delete the iterator when it is no longer needed.
+  // The returned iterator should be deleted before this db is deleted.
+  virtual Iterator* NewIterator(const ReadOptions& options) = 0;
 
   // // Return a handle to the current DB state.  Iterators created with
   // // this handle will all observe a stable snapshot of the current DB

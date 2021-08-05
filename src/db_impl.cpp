@@ -12,6 +12,146 @@
 #include <condition_variable>
 
 namespace cowbpt {
+
+    Iterator* DBImpl::NewIterator(const ReadOptions&) {
+        std::lock_guard<std::mutex> lck(_mutex);
+        return new IteratorImpl(_bpt->snaphot(), _nm);
+    }
+
+    IteratorImpl::IteratorImpl(NodePtr root, NodeManager* nm)
+    : _root(root),
+      _s(Status::OK()),
+      _nm(nm),
+      _parents(),
+      _positions(),
+      _cur_key(),
+      _cur_value(),
+      _valid(false) {}
+
+    bool IteratorImpl::Valid() const {
+        return _valid;
+    }
+
+    void IteratorImpl::SeekToFirst() {
+        _parents.clear();
+        _positions.clear();
+        NodePtr p = _root;
+        while (p->is_internalnode()) {
+            _parents.push_back(p);
+            _positions.push_back(0);
+            p->ref();
+            if (!p->is_in_memory()) {
+                p->lock();
+                if(_nm) _nm->fetch(p->get_node_id(), p);
+                p->unlock();
+            }
+            auto new_p = p->get_child_nodes()[0];
+            p->unref();
+            p = new_p;
+        }
+        _parents.push_back(p);
+        _positions.push_back(0);
+
+        p->ref();
+        if (!p->is_in_memory()) {
+            p->lock();
+            if(_nm) _nm->fetch(p->get_node_id(), p);
+            p->unlock();
+        }
+        auto a = p->get_kv(0);
+        p->unref();
+        _cur_key = a.first;
+        _cur_value = a.second;
+        _valid = true;
+    }
+
+    void IteratorImpl::SeekToLast() {
+        assert(false);
+    }
+
+    void IteratorImpl::Seek(const Slice& target) {
+        assert(false);
+    }
+
+    void IteratorImpl::Next() {
+        if (!_valid) {
+            return;
+        }
+        auto p = _parents.back();
+        p->ref();
+        if (!p->is_in_memory()) {
+            p->lock();
+            if(_nm) _nm->fetch(p->get_node_id(), p);
+            p->unlock();
+        }
+        while (!_parents.empty() && _positions.back() == p->size() - 1) {
+            p->unref();
+            _positions.pop_back();
+            _parents.pop_back();
+            if (_parents.empty()) {
+                break;
+            }
+            p = _parents.back();
+            p->ref();
+            if (!p->is_in_memory()) {
+                p->lock();
+                if(_nm) _nm->fetch(p->get_node_id(), p);
+                p->unlock();
+            }
+        }
+        if (_parents.empty()) {
+            _valid = false;
+            return;
+        }
+        p->unref();
+        _positions.back()++;
+
+        while (p->is_internalnode()) {
+            p->ref();
+            if (!p->is_in_memory()) {
+                p->lock();
+                if(_nm) _nm->fetch(p->get_node_id(), p);
+                p->unlock();
+            }
+            auto new_p = p->get_child_nodes()[_positions.back()];
+            p->unref();
+            p = new_p;
+            _parents.push_back(p);
+            _positions.push_back(0);
+        }
+
+        p->ref();
+        if (!p->is_in_memory()) {
+            p->lock();
+            if(_nm) _nm->fetch(p->get_node_id(), p);
+            p->unlock();
+        }
+        auto a = p->get_kv(_positions.back());
+        p->unref();
+        _cur_key = a.first;
+        _cur_value = a.second;
+        _valid = true;
+    }
+
+    void IteratorImpl::Prev() {
+        assert(false);
+    }
+
+    Slice IteratorImpl::key() const {
+        assert(Valid());
+        return _cur_key;
+    }
+
+    Slice IteratorImpl::value() const {
+        assert(Valid());
+        return _cur_value;
+    }
+
+    Status IteratorImpl::status() const {
+        return _s;
+    }
+
+
     Status DB::Open(const Options& options, const std::string& dbname, DB** dbptr) {
         *dbptr = nullptr;
         DBImpl* impl = new DBImpl(options, dbname);

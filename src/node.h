@@ -35,6 +35,8 @@ protected:
     typedef Slice LeafNodeValue;
 
 public:
+    virtual std::pair<Slice, Slice> get_kv(size_t offset) = 0;
+
     Node(Comparator cmp)
     : _version(1),
       _mutex(),
@@ -214,6 +216,10 @@ private:
     typedef LeafNodeMap<Key, LeafNodeValue, Comparator> KVMap;
     typedef std::shared_ptr<KVMap> KVMapPtr;
 public:
+    std::pair<Slice, Slice> get_kv(size_t offset) override {
+        return (*(_kvmap->get_kv_array()))[offset];
+    }
+
     virtual NodePtr copy() override {
         LeafNode<Comparator>* a = new LeafNode<Comparator>(this->_cmp);
         a->_kvmap.reset(this->_kvmap->copy());
@@ -415,6 +421,10 @@ private:
     typedef InternalNodeMap<Key, InternalNodeValue, Comparator> KVMap;
     typedef std::shared_ptr<KVMap> KVMapPtr;
 public:
+    std::pair<Slice, Slice> get_kv(size_t offset) override {
+        assert(false);
+        return std::make_pair(Slice(), Slice());
+    }
     virtual NodePtr copy() override {
         InternalNode<Comparator>* a = new InternalNode<Comparator>(this->_cmp);
         a->_kvmap.reset(this->_kvmap->copy());
